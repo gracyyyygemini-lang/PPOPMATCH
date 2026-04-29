@@ -1,0 +1,31 @@
+In my React Native (Expo) app, I need to enforce strict form validation across the ENTIRE registration/onboarding flow. Users must not be allowed to proceed to the next screen unless every single question/field on their current screen is completely filled out.
+
+1. Global Validation Logic (Apply to ALL Registration Screens):
+
+On every screen in the onboarding flow (e.g., Role Selection, Vitals/Demographics, Landlord Selection, Compatibility Setup, Profile Picture Upload), implement a strict isFormComplete boolean check.
+
+This boolean must verify that every piece of state on that specific screen has a valid value:
+
+Text inputs cannot be empty strings (text.trim() !== '').
+
+Single-choice selections (like gender, role, or year) cannot be null.
+
+Multi-choice arrays (like landlords or dealbreakers) must have at least one item (array.length > 0).
+
+Image URIs (like the profile picture or room photos) cannot be null.
+
+2. The 'Continue' Button Behavior (Global Component):
+
+The primary action button at the bottom of every registration screen (whether it says 'Continue', 'Next', 'Find My Match', or 'Generate My Profile') MUST be tied to this isFormComplete state.
+
+Pass disabled={!isFormComplete} to the button component.
+
+3. Disabled vs. Active Styling:
+
+Disabled State: When isFormComplete is false, the button must look visibly unclickable. Change its background to a muted grey-teal (Color(0xFFE0E8E9)), the text to a darker grey, and remove any elevation/shadow.
+
+Active State: The exact millisecond the user fills in the final required field on that screen, the button should 'light up' in its active primary color (e.g., the bright coral Color(0xFFFF8C69) or dark teal Color(0xFF2C555C)) with white text, signaling they can proceed.
+
+4. Landlord Multi-Select (Specific Screen Update):
+
+On the landlord screen specifically, change the selection state to an array (string[]). Allow users to toggle multiple landlords (e.g., JSM, Smile, UGroup) so they can show as active simultaneously with teal borders and checkmarks.

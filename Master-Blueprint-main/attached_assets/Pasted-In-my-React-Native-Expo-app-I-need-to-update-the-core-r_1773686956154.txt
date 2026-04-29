@@ -1,0 +1,65 @@
+In my React Native (Expo) app, I need to update the core registration flow and create a new onboarding screen specifically for the 'coseeker' role to act like a modern, Gen Z college roommate profile.
+
+1. Global Profile Picture Upload (On the existing Registration screen):
+
+Add a mandatory Profile Picture upload step before the user can complete sign-up using expo-image-picker.
+
+UI: Display a circular placeholder (width: 120, height: 120, borderRadius: 60, soft seafoam background Color(0xFFD0F0E0)) with a camera icon. Disable the 'Complete Registration' button until an image is selected.
+
+2. Coseeker Routing Update:
+
+In the post-registration routing logic, if userRole === 'coseeker', use router.replace() to send them to a new screen: /compatibility-setup.
+
+3. New Screen: /compatibility-setup (Coseeker Only):
+
+Header: 'Build Your Vibe' with subtext: 'Let's find your perfect UIUC housemate.'
+
+Use a ScrollView with a warm cream background (Color(0xFFFBFBF9)).
+
+4. The Vitals & Gen Z Identifiers (Top Section):
+
+Create clean dropdowns, selectors, or chip rows for:
+
+My Identity: 'Girl', 'Guy', 'Non-binary'
+
+Looking For: 'Girls', 'Guys', 'Co-ed/Any' (Crucial for feed filtering).
+
+Star Sign: Dropdown with 12 Zodiac emojis (♈️ Aries, ♉️ Taurus, etc.)
+
+MBTI: Dropdown with 16 types (INTJ, ENFP, etc. + 'I don't know')
+
+Year: 'Freshman', 'Sophomore', 'Junior', 'Senior', 'Grad/PhD'
+
+Greek Life: 'Independent', 'Sorority', 'Fraternity', 'Prof. Frat'
+
+5. The Dealbreakers & Habits (Middle Section):
+
+Use horizontally scrolling chip rows:
+
+Vices: '🚭 No Smoking', '🍻 Social Drinker', '🌿 420 Friendly'
+
+Pets: '🚫 No Pets', '🐶 Bringing a Dog', '🐱 Bringing a Cat', '🤧 Allergic'
+
+Sleep: 'Early Bird 🌅', 'Standard', 'Vampire 🦇'
+
+Alarms: '1st Ring Waker', 'Snooze Menace ⏰'
+
+Cleanliness: 'Neat Freak ✨', 'Lived-In 🧺', 'Disaster Zone 🌪️'
+
+Groceries: 'Share Everything 🍕', 'Share Basics 🥚', 'Strictly Separate 🛑'
+
+Guests: 'Always Hosting 🕺', 'Weekends Only 🍻', 'Text Me First 📱'
+
+6. The 'Icebreaker' Prompt (Bottom Section):
+
+Build a UI similar to Hinge prompts. The user taps a button to 'Select a Prompt' from a list.
+
+Prompt Options: 'A roommate is immediately disqualified if...', 'You can bribe me to take out the trash with...', 'My toxic living habit is...', 'On a Thursday night, you can find me...'
+
+Display their selected prompt in a soft, seafoam green card (Color(0xFFD0F0E0)) with a multiline TextInput.
+
+7. Styling & Completion:
+
+Keep the 'Ponyo' aesthetic: soft rounded corners (borderRadius: 16), no harsh black lines, and dark teal text (Color(0xFF2C555C)).
+
+Add a large primary button: 'Generate My Profile ✨'. When clicked, save this data to Supabase and route them to the Coseeker feed."

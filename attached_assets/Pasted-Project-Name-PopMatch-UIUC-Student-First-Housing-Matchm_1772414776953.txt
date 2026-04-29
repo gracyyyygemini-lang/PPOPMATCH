@@ -1,0 +1,76 @@
+Project Name: PopMatch (UIUC Student-First Housing & Matchmaker)
+1. The Vision & "Beach-Ghibli" Aesthetic
+Build a full-stack web application for UIUC students.
+
+Vibe: "Sunset Beach Chill" meets "Studio Ghibli." Think Porco Rosso or The Red Turtle.
+
+Color Palette: Use deeper, high-contrast colors for readability: Deep Ocean Blue (#00416A), Sunset Gold (#FFD700), and Burnt Orange (#CC5500) on a warm, sandy-paper background (#F4ECD8).
+
+UI: Soft-edged "Paper" cards with hand-drawn borders. Relaxed, logical, and super simple. Use Framer Motion for smooth, wave-like transitions.
+
+2. Three Core Sections (Direct Navigation)
+The app must have three distinct entry points:
+
+Year-Long Matchmaker: Finding a roommate for a full 12-month lease.
+
+The Sublease Marketplace: A student-to-student portal where users can POST and BROWSE subleases (Fall, Spring, or Summer).
+
+The "Break" Stay: A short-term section for students seeking/offering housing for just 1 week (Thanksgiving, Spring Break, or Winter transition). No matching algorithm needed here—just a simple listing board.
+
+3. The "Post My Sublease" Feature
+Students must be able to create a listing. Required fields:
+
+Address/Building Name: (e.g., "Hub Champaign," "707," "Fairview").
+
+Timeline: Dropdown (Full Year / Fall Sub / Spring Sub / Summer Sub).
+
+Price: Total rent per month.
+
+Landlord: Selection (JSM, UGroup, Smile, etc.) to trigger the "Landlord Cheat Sheet" warnings.
+
+Break Status: Checkbox: "Is this unit available during Thanksgiving/Spring Break?"
+
+4. The Interactive "PopMap" (Google Maps API)
+Visual Pins: Display every sublease and roommate request as a pin on the map.
+
+Zone Highlights: Use soft overlays for the 5 UIUC Zones (Campustown, North/Engineering, South/Ikenberry, Urbana, Downtown).
+
+Clustering: If multiple students are in one building (e.g., "Latitude"), cluster them so the map stays clean.
+
+5. The Matchmaker & "Illini-Link" Logic
+Matching: Use a Weighted Euclidean Distance algorithm for the Year-Long/Sublease sections based on Budget, Cleanliness, and Sleep Schedule.
+
+Social Trust: Use the @illinois.edu network. If two students have a mutual contact, show a "Ghibli Sparkle" badge: "Mutual Link: [Name]".
+
+Gender Filter: Mandatory "Girls Only / Boys Only / Mixed" filter.
+
+6. The "Student Protector" Handoffs
+When a student "Matches" or "Inquires" about a sublease, auto-generate the PopMatch Protection Guide:
+
+The Landlord Warnings: (e.g., FLASH RED for American Campus $600 fees; 72-hour warning for UGroup; Bailey "Poaching" warning).
+
+The Digital Agreement: Auto-fill a PDF with:
+
+Utility Splits: (Ameren, IL Water).
+
+Security Deposit Receipt: Proof of the private cash exchange.
+
+Thermostat & House Rules.
+
+7. Technical Specs
+Frontend: React (Tailwind CSS).
+
+Backend: Python (Flask/SQLAlchemy).
+
+Auth: Strictly @illinois.edu email validation.
+
+Database: Store "Postings" and "User Profiles" separately.
+
+Developer Instruction: Make the app feel like a sunset at the beach—relaxing and hopeful. Ensure the UX is so simple that a student can find a roommate or post a sublease in under 3 minutes. Protect the student at every step.
+
+Final Pro-Tips for you:
+The Map: Tell Replit to "Make the map markers clickable pop-ups that show the rent and the building photo."
+
+The "Break" Section: Tell Replit to "Make the Break section look like a simple bulletin board or sticky-note wall—very fast and informal."
+
+The Contrast: Ask Replit to "Ensure the Deep Ocean Blue text is large enough to read against the sandy background for better accessibility."

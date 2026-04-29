@@ -1,0 +1,33 @@
+In my Flutter app for UIUC housing, I have a global location and date filter row at the top of my housing lists (e.g., 'All Zones', 'Campustown'). These settings must remain global and persistent for all user roles.
+
+Right below that global row, I need to add a Dynamic Sub-Filter Row that changes based on which of the 4 main housing categories the user is currently viewing.
+
+1. Data Structure:
+Create a function or widget that takes the current category as an argument and returns a horizontally scrolling list of chips. Here are the exact lists for each category, ordered by student demand priority:
+
+Roommate Openings: ['Girls Only', 'Guys Only', 'Co-ed', 'Grainger Grind', 'Grad/PhD']
+
+Semester & Year: ['Spring (Dec/Jan – May)', 'Fall (Aug – Dec)', 'Full Year (Aug – Jul)']
+
+Summer Subleases: ['Full Summer (May–Aug)', 'Early Summer (May–Jun)', 'Late Summer (Jul–Aug)', 'Parking Included']
+
+Short-Term & Gaps: ['August Gap', 'Graduation', 'Mom/Dad Weekend', 'Homecoming', 'Winter Break', 'Spring Break', 'Thanksgiving']
+
+2. UI & Styling (Ponyo / Studio Ghibli Aesthetic):
+
+Use a SingleChildScrollView with scrollDirection: Axis.horizontal.
+
+The chips should use the FilterChip widget.
+
+Unselected State: White background, thin soft grey-teal border (Color(0xFFE0E8E9)), and dark teal text (Color(0xFF2C555C)).
+
+Selected State: Soft seafoam green background (Color(0xFFD0F0E0)), no border, and dark teal text.
+
+Add a checkmark icon (Icons.check) that appears when a chip is selected.
+
+Keep the corners beautifully rounded (BorderRadius.circular(20)).
+
+Add standard horizontal padding between the chips (SizedBox(width: 8)).
+
+3. Behavior (Multi-Select Stacking):
+Users MUST be able to select multiple chips at once to stack filters (e.g., a user can click both 'Girls Only' AND 'Grad/PhD' simultaneously). Ensure the UI state manages a List<String> of selected chips rather than a single string. This local state should update the UI instantly without interfering with the top global location/date settings.

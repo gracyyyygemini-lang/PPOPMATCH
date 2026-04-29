@@ -1,0 +1,39 @@
+In my React Native (Expo) app connected to Supabase, I need to make several major UX updates to the Matchmaker, the global Avatar system, and the matching logic.
+
+1. Global Profile Picture Fix (Apply Everywhere):
+
+The app is currently showing default text-based initial avatars (like 'G') instead of the user's uploaded profile picture.
+
+Create or update a global CustomAvatar component. It must check the Supabase user profile for the uploaded image URI (e.g., avatar_url or profile_pic).
+
+Logic: if (user.avatar_url) { return <Image source={{ uri: user.avatar_url }} /> } else { return <FallbackTextAvatar /> }
+
+Apply this CustomAvatar component globally: It MUST be used on the User Profile screen, inside all Chat/Inbox UI screens, next to every chat message, and on the Crash & Cash feed. Make sure it fetches and displays like a standard social media app (Instagram, etc.).
+
+2. Matchmaker UI Cleanup (Remove Background Bleed):
+
+On the Year-Long Matchmaker screen, the 'Zone' filter buttons ('All Zones', 'Campustown', etc.) are visible in the background behind the modal/card.
+
+Completely remove or hide this top scrollview of filters from the Matchmaker swipe screen so the background is a clean, solid color.
+
+3. Disable Swipe & Update Match Buttons:
+
+Disable the physical swipe/drag gestures entirely on the Matchmaker cards (e.g., remove the PanResponder or set swipeEnabled={false}). Users must only use the buttons.
+
+Redesign the Action Buttons:
+
+Left Button (Pass): A bold red or soft red circular button containing a Red Panda emoji 🐼 (or an icon) instead of an 'X'.
+
+Right Button (Match): A bold green circular button containing a white heart or green heart emoji 💚.
+
+Make these buttons large, tactile, and instantly responsive when tapped.
+
+4. Post-Match Chat Trigger Logic:
+
+When a user taps the Green Heart 💚, create a 'like' record in the Supabase database.
+
+Implement a check: If User A likes User B, and User B has already liked User A, it is a 'Mutual Match'.
+
+The Chat Creation: When a mutual match occurs, automatically insert a new row into the chat_channels (or conversations) Supabase table connecting User A and User B.
+
+The Pop-Up: Show a celebratory 'It's a Match! 🎉' modal overlaying the screen. Provide a button on this modal that says 'Say Hi 👋' which directly navigates the user into that newly created Chat screen so they can start texting immediately.

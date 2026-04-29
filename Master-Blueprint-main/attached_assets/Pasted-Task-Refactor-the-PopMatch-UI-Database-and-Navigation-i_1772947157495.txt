@@ -1,0 +1,58 @@
+Task: Refactor the PopMatch UI, Database, and Navigation into a 3-tab, high-precision housing hub with integrated real-time messaging.
+
+1. Navigation & Layout Overhaul
+Action: Delete the PopMap and My Circle components and their icons from the BottomNavBar.
+
+New 3-Tab Nav: Set the BottomNavBar to exactly three items: Browse (Home icon), Inbox (Chat icon), and Profile (User icon).
+
+Web View: Apply max-width: 500px and margin: auto to the root container to ensure the app stays centered and mobile-sized on web browsers.
+
+2. Integrated Real-Time Chat System
+The Message Trigger: Add a prominent "Message [Name]" button to every listing card in the Marketplace and every profile in the Matchmaker.
+
+Direct Routing: Clicking "Message" must initialize a new conversation between the currentUser.id and the listing.ownerId.
+
+The Inbox Tab: Build a list view of all active conversations.
+
+Contextual Headers: Each chat entry must show the Building Name, Monthly Price, and User Avatar.
+
+Chat Room UI: Build a standard message interface with:
+
+Timestamped bubbles.
+
+Listing Preview: A small, non-intrusive card at the top of the chat showing which room is being discussed to prevent confusion for "Host" users.
+
+3. Dynamic "OCD-Standard" Image Logic
+Refactor the ListingForm to include two "Gatekeeper" toggles before the photo upload section:
+
+Toggle A: "Private Kitchen?" (Yes/No).
+
+Toggle B: "Private Bathroom?" (Yes/No).
+
+Mandatory Uploads (3 Slots):
+
+Slot 1: Always labeled "Bedroom".
+
+Slot 2: Label as "Private Bathroom" if Toggle B is Yes; label as "Shared Bathroom" if No.
+
+Slot 3: Label as "Private Kitchen" if Toggle A is Yes; label as "Communal Kitchen/Area" if No.
+
+Constraint: Disable the 'Submit' button until all 3 high-resolution photos are uploaded.
+
+4. The 16-Point Universal Facility Standard
+Every post (Sublease, Short-Term, or Year-Long) MUST include these 16 boolean toggles in the database and form:
+
+Foundational: isFurnished, hasLaundry, hasWifi, hasAC.
+
+Collegiate: hasStudyLounge, hasPrinting, hasBikeStorage, hasSecurity.
+
+Financial: utilsIncluded, noDeposit, parkingIncluded.
+
+Building: hasGym, hasPool, hasElevator, hasRooftop, hasLockers.
+
+5. Precise Handoffs & Visual UI
+Timing: Use a DateTimePicker for moveInDateTime and moveOutDateTime (Store as ISO Strings).
+
+Cleanliness: Require selections for cleaningFreq (Daily/Weekly/Monthly) and shoePolicy (Shoes-Off/Front-Door/None).
+
+Browse Tab UI: Refactor cards to make the Photo 60% of height. Overlay a 2x2 grid of icons for the 4 'Foundational' amenities (Bed, Washer, WiFi, Snowflake).

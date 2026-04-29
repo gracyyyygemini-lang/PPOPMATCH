@@ -1,0 +1,65 @@
+In my React Native (Expo) app with a Supabase backend, I need to completely rebuild the 'Crash & Cash' feature. This is an urgent, short-term couch-surfing board for college students. Implement the following UI, database, routing, and chat logic:
+
+1. The Feed UI (Instagram/Pinterest Style Grid):
+
+Layout: Use a FlatList with numColumns={2} (Masonry grid style). Background must be a warm cream (#FBFBF9). Add a top toggle: '🚨 Needing' | '🛋️ Offering' | 'All'.
+
+Card Design: borderRadius: 16, hidden overflow. Soft 5% opacity shadow, NO hard black borders.
+
+Dynamic Colors: >   - 'SOS/Needing' posts: Soft coral background (#FDECE8).
+
+'Offering' posts: Soft seafoam background (#E8F6F3).
+
+Card Contents:
+
+Hero Image (Takes up 60% of card, height: 180, cover): MUST display the uploaded photo.
+
+Overlays: Top-left is the user's circular avatar (28x28). Bottom-left is a tag ('🚨 NEED' or '🛋️ GOT').
+
+The Story: 2-line clamped text (14px, medium weight, #2C555C).
+
+Essentials Box: A stark white inner box (#FFFFFF, borderRadius: 8, padding: 6) showing the 🗓️ Date and 📍 Location.
+
+Action Row: Bottom left shows the currency (e.g., '🧋 Boba', '💵 Cash'). Bottom right is a 'DM ⚡️' button in dark teal.
+
+2. Supabase Algorithm & Sorting (The Feed Logic):
+
+Query Rules: Fetch only posts where status === 'active'.
+
+Auto-Clean: Only fetch posts where the target_date is >= today. Ignore anything in the past.
+
+Urgency Sort: Sort the fetched data by target_date in ASCENDING order so the dates closest to today are at the absolute top of the feed.
+
+Empty State: If no active posts exist, display centered text: 'No one is crashing right now! 🛋️ Be the first to offer a spot.'
+
+3. Post Management ('Mark as Filled'):
+
+On the feed, if currentUser.id === post.owner_id, hide the 'DM ⚡️' button.
+
+Replace it with a grey outlined button: 'Mark as Filled 🔒'.
+
+Action: On press, update this post's status to 'completed' in Supabase and refresh the feed to instantly hide the card.
+
+4. The 'Create Post' Modal (Strict 7-Day Rule & Validation):
+
+7-Day Constraint: The Date Picker must have minimumDate set to new Date() (today) and maximumDate set to exactly 7 days from today.
+
+Helper Text: Above the Date Picker, add a soft coral box (#FDECE8) with text: '⚡️ Crash & Cash is for urgent stays only. You can only post for the next 7 days.'
+
+Mandatory Image: Use expo-image-picker. The user MUST upload at least 1 image of the room/situation.
+
+Strict Validation: The 'Post to Feed ✨' button remains disabled (greyed out) until a photo is uploaded, dates/locations are set, and text is entered.
+
+5. Contextual Chat Integration (Urgent DMs):
+
+When a user taps 'DM ⚡️' on a Crash & Cash post and routes to the Chat UI, pass a context parameter (e.g., source='crash_cash').
+
+If source === 'crash_cash', override the default chat suggestion chips at the bottom of the screen with these urgent logistics chips:
+
+['Still available? 👀', 'When can I pull up? ⌚', 'Bring my own blanket? 🛌', 'Venmo or Cash? 💸', 'Guest parking? 🚗']
+
+When a chip is tapped, populate the text input or send the message directly.
+
+6. Global Styling (Ponyo Aesthetic):
+
+Adhere strictly to clean, soft aesthetics. Primary text/buttons are dark teal (#2C555C). Backgrounds are warm cream. Active accents are coral or seafoam. Avoid harsh drop shadows and absolute black."

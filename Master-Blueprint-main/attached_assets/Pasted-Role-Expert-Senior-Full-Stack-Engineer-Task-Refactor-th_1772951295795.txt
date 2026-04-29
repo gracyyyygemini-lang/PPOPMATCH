@@ -1,0 +1,40 @@
+Role: Expert Senior Full-Stack Engineer.
+
+Task: Refactor the Host (Option A) onboarding flow to focus on listing creation and direct incoming inquiries, bypassing the Matchmaker.
+
+1. Corrected Host Routing (Post-Registration)
+The Trigger: Immediately after a user selects the 'Host' intent, redirect them to the PostMyApartment screen.
+
+The Logic: Do NOT redirect to Matchmaker or Browse after posting. Once the Host submits the listing, redirect them to their own 'Profile' or a 'My Listings' dashboard where they can wait for incoming inquiries.
+
+2. The PostMyApartment Form (Precision Data)
+To satisfy "OCD-level" organization, the Host must define the unit's geometry exactly:
+
+Unit Type: unitType (e.g., 2B2B, 3B2B, 4B2B).
+
+Occupancy Details: roomsAvailable (Number of spots open) and currentResidentBio (Who already lives there).
+
+Privacy Verification: Explicit toggles for "Does the joiner get a Private Bedroom?" and "Does the joiner get a Private Bathroom?".
+
+16 Mandatory Amenities: Toggle switches for all 16 fields (Laundry, WiFi, AC, Gym, Security, etc.).
+
+Visuals: Mandatory 3-photo upload (Bedroom, [Private/Shared] Bathroom, [Private/Communal] Kitchen).
+
+3. The Joiner Experience (Discovery & Outreach)
+The View: Upon registration, the Joiner is directed to the Browse tab, filtered for "Roommate Openings" (Host posts).
+
+The Action: Every Host listing must have a prominent "Message Host" button.
+
+Full-Screen Proof: Joiners can click the image to see the Full-Screen Gallery to verify the bathroom and kitchen cleanliness before texting.
+
+4. Integrated Chat Logic (The "Text" Feature)
+The Inbox: When a Joiner clicks "Message Host," it initializes a thread in the Inbox tab.
+
+Contextual Threading: The Host receives the message with a header showing: "Inquiry for [Building Name] - [Price]" so they know which room the Joiner is texting about.
+
+Persistence: All messages and listing data must be stored in the database (Firebase or Replit DB) to ensure the conversation and the 2B2B details are never lost.
+
+5. Technical Guardrails for Replit
+Container: Maintain max-width: 500px and margin: auto for a centered UI.
+
+Authentication: Ensure only verified @illinois.edu users can send or receive these messages.

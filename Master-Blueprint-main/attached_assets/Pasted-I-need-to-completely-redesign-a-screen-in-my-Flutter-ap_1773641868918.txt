@@ -1,0 +1,42 @@
+I need to completely redesign a screen in my Flutter app to be a real-time, fast-scrolling social feed (like YikYak or Twitter) called 'Crash & Cash'. This is for urgent short-term stays and casual couch surfing for UIUC college students.
+
+1. Screen Header:
+
+Title: 'Crash & Cash' (Bold, dark teal Color(0xFF2C555C)).
+
+Subtitle: 'Rent your couch for the weekend. Get paid in cash, boba, or cover for Red Lion.' (Smaller, soft grey-teal).
+
+FAB (Bottom Right): Bright coral button (Color(0xFFFF8C69)) with a pencil icon.
+
+2. Feed Layout:
+
+Use a ListView.separated with a warm cream background (Color(0xFFFBFBF9)).
+
+3. The 'Tweet' Card Design (Soft Ghibli Style):
+Wrap each post in a white container, BorderRadius.circular(16), with a very soft, faint shadow. No harsh black lines.
+
+4. Card Contents (Top to Bottom):
+
+Top Row (The Vibe): >   - Left: A solid pill tag. Options: 🚨 'SOS / Stranded' (red) or 🛋️ 'Offering a Crashpad' (seafoam green).
+
+Right: Timestamp (e.g., '10m ago').
+
+Second Row (The Story): Casual, readable text. >   - Mock Data Examples: 'Locked out of the Ike. Need a floor to sleep on, will buy you a Blue Guy at Kam's tomorrow.' OR 'Roommate is gone. Got an air mattress near Grainger. Yours for $15 or a burrito from Maize.'
+
+Third Row (The Casual Photo Attachment):
+
+Add an optional image thumbnail below the text. It should NOT be a massive Zillow photo. Make it a small, rounded rectangle (e.g., height: 120, width: 120, BorderRadius.circular(12)), aligned to the left.
+
+Interaction: Wrap the image in a GestureDetector. When tapped, use Navigator.push to open a simple full-screen image viewer with a black background and a 'Close' 'X' button in the top left.
+
+Fourth Row (The Essentials Box): A softly tinted, rounded rectangle (Color(0xFFF0F5F5)) containing:
+
+🗓️ Dates (e.g., 'Tonight only' or 'Nov 22 - Nov 25')
+
+📍 Location (e.g., 'Campustown' or 'Urbana')
+
+Bottom Row (The Action):
+
+Left side: The accepted currency in bold (e.g., '💵 $20', '🧋 Boba', '🦁 Lion Cover').
+
+Right side: A wide, highly clickable button: 'Slide into DMs ⚡️' that triggers the chat function. Ensure dates and locations remain global context.

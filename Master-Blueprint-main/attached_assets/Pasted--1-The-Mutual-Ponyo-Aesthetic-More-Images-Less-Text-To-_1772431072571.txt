@@ -1,0 +1,38 @@
+🌊 1. The "Mutual" Ponyo Aesthetic (More Images, Less Text)
+To add Ponyo elements that have a mutual, universal appeal (so guys will love the vibe just as much as girls), focus on the Studio Ghibli environmental color palette rather than literal pictures of characters. It makes the app feel calm, premium, and ocean-inspired.
+
+Tell Replit to use these exact Hex codes for your UI:
+
+Deep Ocean Blue (Text/Headers): #5A6F80
+
+Magic Seafoam (Buttons/Accents): #278B9A
+
+Ponyo Red (Notifications/Urgent Actions): #E75B64
+
+Warm Sand (Backgrounds/Cards): #E8C4A2
+
+To fix the "too much text" problem: Tell Replit to build a "Card-Based UI". Instead of text descriptions for apartments, the feed should look like Instagram or TikTok. Big image of the room, a bold price (e.g., $600/mo), and three icons underneath (🛏️ 1 Bed, 🛁 1 Bath, 📍 Green St). That’s it.
+
+🕵️‍♂️ 2. How Does the App "Know" a Sublease is Successful?
+Because the actual lease signing happens offline at a UIUC property management office (like JSM or Smile), the app cannot automatically know. You have to force the users to tell the app.
+
+How? By using incentives and annoyance:
+
+The "Stop the Spam" Incentive: When a user's sublease is popular, their inbox will blow up. Put a massive, satisfying #E75B64 (Ponyo Red) button on their dashboard that says "Mark as Leased". They will click this just to stop getting messages from random people.
+
+The Trigger: When they click that button, the app immediately removes the post from the public feed, sends a "Congratulations!" animation, and +1 is added to your database's "Total Successful Subleases" counter.
+
+📊 3. Displaying DAU, MAU, and Match Data (Social Proof)
+You are brilliant to want this on the app. Showing live data proves the app isn't a ghost town.
+
+Don't use boring corporate terms like "DAU" or "MAU" on the user screen. Gamify it. Put a sleek, auto-updating "Live Campus Stats" banner right at the top of the Home Screen or Matchmaker screen.
+
+Tell Replit to build a component that displays your database metrics like this:
+
+🔥 142 Students Online Today (This is your DAU)
+
+🤝 85 Roommate Groups Formed (This is your matches count)
+
+🏠 23 Leases Signed This Week (Triggered by the "Mark as Leased" button)
+
+This creates massive FOMO (Fear Of Missing Out). When a student opens the app and sees "23 Leases Signed This Week," they will immediately think, "Oh wow, people are actually getting apartments here, I need to swipe right now."

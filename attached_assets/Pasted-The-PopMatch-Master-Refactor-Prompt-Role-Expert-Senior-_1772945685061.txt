@@ -1,0 +1,45 @@
+The "PopMatch" Master Refactor Prompt
+Role: Expert Senior Full-Stack Engineer.
+Task: Refactor the current app to support a 5-pathway intent system and a high-precision, filtered housing marketplace.
+
+1. Data Schema Update (The Foundation)
+Update the User and Listing models to include these exact fields:
+
+User Intent: intent (Host, Joiner, Co-Seeker, Sublessor, Sublessee).
+
+Handoff Timing: moveInDate (DateTime), moveOutDate (DateTime).
+
+16-Point Amenities (Booleans): * Foundational: isFurnished, hasLaundry, hasWifi, hasAC.
+
+Collegiate: hasStudyLounge, hasPrinting, hasBikeStorage, hasSecurity.
+
+Financial: utilsIncluded, noDeposit, parkingIncluded.
+
+Building: hasGym, hasPool, hasElevator, hasRooftop, hasLockers.
+
+Cleanliness Logic: cleaningFrequency (Daily, Weekly, Monthly), shoePolicy (Shoes-Off, Front-Door, No-Policy).
+
+2. Intent-Based "Bridge" Logic
+The Intercept: If user.intent is 'Host' or 'Sublessor' and user.hasListing is false, clicking 'Matchmaker' must redirect to the 'Link a Listing First' screen.
+
+The Link: The 'Go to Marketplace' button on that screen must open the CreateListingForm component.
+
+3. The "Smart" Create Listing Form
+Build a multi-step form with these specific requirements:
+
+Kitchen Logic: First, ask: "Is the kitchen private or communal?"
+
+If Private: Require 3 image uploads labeled Bedroom, Bathroom, and Kitchen.
+
+If Communal: Require 3 image uploads labeled Bedroom, Bathroom, and Communal Area.
+
+Validation: Disable the 'Submit' button until all 3 photos are uploaded and all 16 amenity toggles are selected.
+
+Precise Handoff: Use a DateTimePicker for moveInDate and moveOutDate to ensure exact time-stamped arrivals.
+
+4. UI & Navigation Refactor
+Tab Removal: Delete the 'PopMap' tab from the BottomNavBar.
+
+Zone Filter: Add a horizontal scrolling ZonePicker (Campustown, North, South, Urbana, Champaign) to the top of the Browse and Matchmaker tabs.
+
+Scannable Cards: On listing cards, display a 2x2 grid of icons for the 4 'Foundational' amenities (Bed, Washer, WiFi, Snowflake) for instant "OCD-friendly" comparison.

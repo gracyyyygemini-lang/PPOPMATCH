@@ -1,0 +1,62 @@
+In my React Native (Expo) app, I need to completely rebuild the 'Crash & Cash' screen. It needs to look like a highly visual, two-column social media grid (similar to Instagram Explore or Pinterest), optimized for urgent short-term college housing.
+
+1. Screen Setup & Header:
+
+Background: Warm cream (#FBFBF9).
+
+Header Title: 'Crash & Cash' in bold, primary dark teal (#2C555C).
+
+Subtitle: 'Rent your couch. Get paid in cash, boba, or Red Lion cover.'
+
+Top Toggle: A segmented control right under the header to filter the feed: '🚨 Needing' | '🛋️ Offering' | 'All'.
+
+FAB: A bright coral (#FFFF8C69) floating action button at the bottom right to 'Create Post'.
+
+2. The Two-Column Grid Layout:
+
+Use a FlatList with numColumns={2} or a Masonry grid layout.
+
+Add 12px of gap between the columns and rows. Add 16px of padding around the edges of the grid.
+
+3. The 'Hero Image' Card Design:
+
+Each grid item is a rounded card (borderRadius: 16, hidden overflow).
+
+Color Coding: The card background MUST be dynamically tinted.
+
+If post type is 'SOS/Needing': Soft coral tint (#FDECE8).
+
+If post type is 'Offering': Soft seafoam green tint (#E8F6F3).
+
+4. Card Contents (Top to Bottom):
+
+The Hero Image (Takes up 60-70% of the card height):
+
+The uploaded room/situation photo must be large, high-quality, and fill the top half of the card (resizeMode: 'cover', height: 180).
+
+Overlay 1 (Top Left): The user's circular avatar (width: 28, height: 28, borderRadius: 14) with a thin white border to pop off the background.
+
+Overlay 2 (Top Right): A blurred, glassmorphic pill showing the timestamp ('10m ago').
+
+Overlay 3 (Bottom Left of Image): A bold tag partially overlapping the bottom edge of the image. For SOS: '🚨 NEED'. For Offer: '🛋️ GOT'.
+
+5. The Details (Below the Image):
+
+The Story: A 2-line clamped Text widget with the casual story (e.g., 'Locked out of the Ike! Need a couch.'). Font: 14px, medium weight, dark teal (#2C555C). Add 8px of padding around this text.
+
+The Essentials Box: Inside the tinted card, add a stark white inner box (#FFFFFF, borderRadius: 8, padding: 6, marginHorizontal: 8) containing:
+
+🗓️ Date (e.g., 'Tonight only')
+
+📍 Location (e.g., 'Campustown')
+(Note: Ensure these date and location settings are treated globally for all user roles across the app, as per our established architecture).
+
+The Action Row (Bottom):
+
+Left side: The currency in bold (14px, e.g., '🧋 Boba', '💵 $20').
+
+Right side: A small, highly clickable 'DM ⚡️' button in primary dark teal with white text.
+
+6. Styling Rules:
+
+Strictly adhere to the Ponyo/Studio Ghibli aesthetic: soft, inviting colors, no harsh drop shadows (use a 5% opacity black shadow with a high blur radius), and absolutely no hard black borders."

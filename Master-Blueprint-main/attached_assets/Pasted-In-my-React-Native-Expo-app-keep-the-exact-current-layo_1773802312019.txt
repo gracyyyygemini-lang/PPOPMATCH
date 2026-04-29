@@ -1,0 +1,47 @@
+In my React Native (Expo) app, keep the exact current layout and component structure of the Home/Browse screen. Do not change the order of the sections. I just need a major UI styling upgrade to make the cards feel more vibrant, tactile, and appealing to college students, using a soft, warm 'Ponyo' color palette.
+
+1. 'Browse By Housing Type' Cards (Soft Translucent Style):
+
+Keep the 2x2 grid layout.
+
+Remove the stark white backgrounds and harsh shadows.
+
+Give each of the 4 cards a very soft, slightly tinted pastel background with a low opacity to look almost like watercolor or frosted glass.
+
+Find a Roommate: Soft lavender tint (rgba(200, 182, 255, 0.15)).
+
+Semester & Year: Soft mint tint (rgba(168, 218, 220, 0.15)).
+
+Summer Subleases: Soft peach tint (rgba(255, 218, 185, 0.2)).
+
+Short-Term & Gaps: Soft sky blue tint (rgba(162, 210, 255, 0.15)).
+
+Keep the icons their respective colors, but make the card borders completely transparent.
+
+2. 'Year-Long Matchmaker' (The Gen-Z Dating App Vibe):
+
+Keep this as a full-width horizontal card under 'OTHER FEATURES', but make it pop.
+
+Background: Use a vibrant, warm coral/pink gradient or solid color (#FF9E9D).
+
+Watermark/Background Icon: Add a large, translucent white heart icon (position: 'absolute', right: -20, bottom: -20, opacity: 0.15, size: 120) so it bleeds off the edge of the card. This subconsciously screams 'matching/dating'.
+
+Typography: Change the title text to solid white (#FFFFFF) and make it heavier (fontWeight: '800'). Keep the subtitle legible in a slightly translucent white.
+
+3. 'Crash & Cash' (The Urgent/Fun Vibe):
+
+Keep this right below Matchmaker.
+
+Background: Use an energetic but soft warm orange/yellow (#FFD6A5).
+
+Watermark/Background Icon: Add a large, translucent white lightning bolt or couch icon (position: 'absolute', right: -10, bottom: -10, opacity: 0.2, size: 100).
+
+Typography: Change the title text to your primary dark teal (#2C555C), fontWeight: '900'.
+
+The 'Fun' Text Highlight: For the subtitle '...pay in cash, boba, or Lion cover', style the specific payment words to look like colorful tags. Wrap 'cash' in a soft green <View>, 'boba' in a soft pink <View>, and 'Lion cover' in a soft yellow <View>. Give these tags a small border radius (borderRadius: 6) and tight padding.
+
+4. General Styling Adjustments:
+
+Ensure all cards have beautifully rounded corners (borderRadius: 20).
+
+Replace default drop shadows with very soft, colored ambient shadows (e.g., the Matchmaker card should cast a very faint pink shadow, not a black one).

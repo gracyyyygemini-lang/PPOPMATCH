@@ -1,0 +1,51 @@
+In my React Native (Expo) app, I need to update the styling of the Home/Browse screen. The current design lacks contrast and feels a bit too pastel/girly. I want to shift the color palette to a more gender-neutral, nature-inspired 'Studio Ghibli' aesthetic (ocean blues, sage greens, terracotta) and add distinct shadows so the UI blocks pop off the background.
+
+1. Background & Global Contrast:
+
+Deepen the main screen's background color slightly to a cool off-white/light gray (#F0F2F0) so the cards stand out more.
+
+Global Shadow Style: Add a crisp, modern drop shadow to ALL cards (the 4 housing type blocks, the Matchmaker card, and the Crash & Cash card).
+
+iOS: shadowColor: '#1A2F33', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12.
+
+Android: elevation: 4.
+
+2. 'Browse By Housing Type' Cards (Gender-Neutral Tones):
+
+Update the background tints to richer, gender-neutral nature tones with slightly higher opacity (0.4 or solid light colors) so they don't look washed out.
+
+Find a Roommate: Slate Blue (#E2EAF4).
+
+Semester & Year: Sage Green (#E4F1E9).
+
+Summer Subleases: Warm Sand (#FDF0D5).
+
+Short-Term & Gaps: Soft Cyan/Steel (#E0F0F5).
+
+3. 'Year-Long Matchmaker' (Earth Tone Upgrade):
+
+Shift the background from pink to a rich, earthy Terracotta/Rust (#D96C5B). This is bold, warm, and completely gender-neutral.
+
+Ensure the title text is solid white (#FFFFFF), fontWeight: '800'.
+
+Keep the background heart watermark, but make it a subtle white overlay (opacity: 0.1).
+
+4. 'Crash & Cash' (High-Energy Amber):
+
+Shift the background from pale orange to a deeper, vibrant Golden Amber (#EBAE61).
+
+Change the title text to your primary dark teal (#2C555C), fontWeight: '900'.
+
+The Tags: Update the highlight pills for 'cash', 'boba', and 'Lion cover' to gender-neutral contrasting colors:
+
+'cash': Mint green background (#A8DADC), dark teal text.
+
+'boba': Soft slate blue background (#A2D2FF), dark text.
+
+'Lion cover': Bright yellow background (#FEE440), dark text.
+
+5. Typography & Borders:
+
+Ensure all card borders are completely removed (borderWidth: 0). Let the new shadows do the work of separating the cards from the background.
+
+Ensure all text inside the top 4 housing blocks is primary dark teal (#2C555C) for maximum readability."

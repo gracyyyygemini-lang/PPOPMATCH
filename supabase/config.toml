@@ -1,0 +1,22 @@
+# Supabase local dev config (supabase CLI)
+[api]
+port = 54321
+schemas = ["public"]
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+port = 54323
+
+[auth]
+# Firebase handles all auth — Supabase Auth is disabled
+site_url = "http://localhost:8081"
+enable_signup = false
+
+# JWT verification is handled inside each Edge Function using Firebase tokens.
+# Deploy with: supabase functions deploy <name> --no-verify-jwt
+
+[realtime]
+enabled = true

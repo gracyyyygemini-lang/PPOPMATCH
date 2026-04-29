@@ -1,0 +1,57 @@
+In my React Native (Expo) app, the horizontal 'Time/Category' filter chips on the listing feeds (Short-Term, Summer, and Semester/Full Year) are currently dead UI. I need you to wire these state variables directly into the Supabase fetching queries so they actually filter the data.
+
+1. Global Logic Fix (Dependency Arrays):
+
+For all three screens below, ensure the Supabase fetchListings function is wrapped in a useEffect or useFocusEffect that includes the selected filter state in its dependency array (e.g., [selectedTimeFilter, selectedZone]). When a chip is tapped, the feed MUST instantly requery the database.
+
+2. Fix the 'Short-Term & Events' Feed:
+
+State: Ensure you have const [selectedEvent, setSelectedEvent] = useState('All');
+
+The Query: Locate the Supabase fetch for this screen. It should already be fetching where listing_category === 'short_term'.
+
+The Filter Injection: >   - let query = supabase.from('listings').select('*').eq('listing_category', 'short_term');
+
+if (selectedEvent !== 'All') { query = query.eq('event_tag', selectedEvent); }
+
+Note: Ensure the chip names exactly match the event_tag strings saved in the database (e.g., 'Mom's Weekend', 'Graduation').
+
+3. Fix the 'Summer Subleases' Feed:
+
+State: const [selectedSummerType, setSelectedSummerType] = useState('All');
+
+The Query: Locate the fetch where listing_category === 'summer'.
+
+The Filter Injection:
+
+let query = supabase.from('listings').select('*').eq('listing_category', 'summer');
+
+if (selectedSummerType === 'Early Summer') { query = query.eq('sub_category', 'early_summer'); }
+
+if (selectedSummerType === 'Late Summer') { query = query.eq('sub_category', 'late_summer'); }
+
+if (selectedSummerType === 'Full Summer') { query = query.eq('sub_category', 'full_summer'); }
+
+Parking Filter: If you have a parking toggle here: if (parkingOnly) { query = query.eq('has_parking', true); }
+
+4. Fix the 'Semester / Full Year' Feed:
+
+State: const [selectedLeaseType, setSelectedLeaseType] = useState('All');
+
+The Query: Locate the fetch for this screen.
+
+The Filter Injection:
+
+let query = supabase.from('listings').select('*');
+
+if (selectedLeaseType === 'Spring') { query = query.eq('listing_category', 'spring'); }
+
+if (selectedLeaseType === 'Fall') { query = query.eq('listing_category', 'fall'); }
+
+if (selectedLeaseType === 'Full Year') { query = query.eq('listing_category', 'full_year'); }
+
+else if (selectedLeaseType === 'All') { query = query.in('listing_category', ['spring', 'fall', 'full_year']); }
+
+5. UI Feedback:
+
+Ensure the actively selected filter chip is visually highlighted (e.g., background turns to your primary dark teal #2C555C and text turns white #FFFFFF)."

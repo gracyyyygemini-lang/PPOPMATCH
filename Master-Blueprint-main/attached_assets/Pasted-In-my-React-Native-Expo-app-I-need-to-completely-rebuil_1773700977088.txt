@@ -1,0 +1,53 @@
+In my React Native (Expo) app, I need to completely rebuild the 'Year-Long Matchmaker' screen (the swipe feed for the 'coseeker'/'joiner' roles). It must look like a premium, highly visual Gen Z social app (like Hinge or Bumble) but adhere strictly to our soft 'Ponyo' aesthetic.
+
+1. Screen Setup & Background:
+
+The main screen background should be a warm cream (Color(0xFFFBFBF9)).
+
+Remove all static white margins or card borders.
+
+2. The Hero Swipe Card (Full-Bleed Layout):
+
+The swipeable card must be massive, taking up roughly 85% of the screen height and 95% of the width (alignSelf: 'center', borderRadius: 32, overflow: 'hidden').
+
+The Image is the Background: The user's uploaded profile picture MUST fill the entire background of the card (width: '100%', height: '100%', resizeMode: 'cover').
+
+Gradient Overlay: Add a LinearGradient (from transparent at the top to rgba(0,0,0,0.8) at the bottom) over the bottom 60% of the image so the text layered on top is perfectly readable.
+
+3. Card Contents & Visual Hierarchy (Layered over the bottom of the image):
+
+Position all of the following elements inside a container at the bottom of the card, using justifyContent: 'flex-end', padding: 20.
+
+The Match Score (Largest Element): This must be the biggest text on the screen.
+
+Number: fontSize: 64, fontWeight: '900', bright coral (Color(0xFFFF8C69)), with a tight, dark drop shadow to punch through the image.
+
+Label: Next to or just below the number, write 'MATCH ✨' in thick, tracked-out white letters (fontSize: 16, letterSpacing: 2, fontWeight: 'bold', color: '#FFFFFF').
+
+Name & Vitals: >   - Name: fontSize: 28, fontWeight: 'bold', solid white (#FFFFFF).
+
+Vitals: Right below the name, add their Year & Greek Life (e.g., 'Junior • Sorority') in a softer translucent white (rgba(255,255,255,0.8)).
+
+4. Habit Chips & Personality:
+
+Glassmorphic Chips: Below the vitals, add a horizontally wrapping row of chips for their habits (e.g., 'Night Owl 🦇', 'Neat Freak ✨', '🌿 420 Friendly').
+
+Chip Style: Semi-transparent background (backgroundColor: 'rgba(255, 255, 255, 0.2)'), borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6, solid white text. Ensure a blur effect (backdropFilter: 'blur') if supported.
+
+The UIUC Icebreaker: Below the chips, add a slightly darker translucent box (backgroundColor: 'rgba(0, 0, 0, 0.4)', borderRadius: 12, padding: 12). Display their selected prompt and answer (e.g., 'My toxic living habit is...\nLeaving my shoes in the hallway.'). Use white text.
+
+5. The Swipe Controls (Bottom of Screen):
+
+Positioned underneath the hero card (or slightly overlapping the bottom edge).
+
+Create a row with two large, tactile, circular buttons (width: 75, height: 75, borderRadius: 37.5).
+
+Pass (X): Soft warm cream or grey background, dark teal icon.
+
+Match (Heart): Bright primary coral (Color(0xFFFF8C69)) background, solid white icon. Add a soft 10% opacity shadow.
+
+6. Styling Constraints:
+
+Strictly NO hard black lines or borders anywhere.
+
+Make the UI feel completely tactile, young, and visually arresting. The compatibility score and the photo are the absolute focus."

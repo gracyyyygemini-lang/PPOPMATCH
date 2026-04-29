@@ -1,0 +1,32 @@
+1. The Roommate Matchmaker Flow
+You correctly identified that there are two totally different scenarios here. You need to offer users two different "Paths" when they open the Matchmaker:
+
+Path A: "I need to form a group" (Starting from scratch)
+
+The Goal: Matching individuals who don't have an apartment yet.
+
+How it works: Users swipe or browse profiles based on budget, cleanliness, and sleep schedule.
+
+What happens after they match? The app automatically creates an in-app chat for them. You can include an automated system message in the chat that says: "You’re a match! Say hi, and start browsing the Sublease tab together to find your perfect spot."
+
+Path B: "I have a place, I need roommates" (Filling empty beds)
+
+The Goal: A user already has a lease but needs 1, 2, or 3 more people to fill the remaining rooms.
+
+How it works: Instead of just a personal profile, the user creates a "Group Profile." It shows the apartment details (location, rent) AND the profiles of the current roommates.
+
+What happens after they match? When a solo user "likes" this group and the group "likes" them back, the solo user is added to the existing Group Chat to see if they vibe.
+
+2. The Sublease Flow (Listings & Chat)
+When someone is scrolling through sublease posts, the process of claiming it should be frictionless.
+
+The Chat Feature: Every sublease post must have a prominent "Message Subleaser" button. Clicking this should immediately open an in-app chat with the listing attached at the top of the screen so both people know exactly which apartment they are discussing.
+
+The Transaction (How do they pay?): Do not handle rent payments on your app. Processing thousands of dollars in rent opens you up to massive legal liability, credit card fees, and scam risks.
+
+The Reality of Subleasing: Your app should act solely as the connector. Once the two users agree in the chat, the standard procedure is for them to meet up (or email) and contact the campus property management company (like JSM, Green Street, etc.) to sign official lease-transfer paperwork.
+
+App Feature Idea: Instead of a payment gateway, add a "Mark as Subleased" button for the seller, which takes the post down.
+
+3. Designing the Vibe
+Since this app relies heavily on chatting and matching, the UI needs to feel welcoming to everyone. Using warm, ocean-inspired tones—like soft teals, seafoam greens, and warm reds (reminiscent of a Ghibli aesthetic like Ponyo)—is a great way to make the interface feel charming and approachable. This strikes the perfect balance: it’s inviting and friendly, but remains a neutral, comfortable space that all students, regardless of gender, will want to use.

@@ -1,0 +1,39 @@
+In my React Native (Expo) app, I need to update the onboarding navigation flow and the 'Post My Apartment' screen to be strictly tailored for the 'Host' role.
+
+1. Role-Based Onboarding Routing:
+
+In the onboarding flow, check the selected user role.
+
+If role === 'joiner' (or standard user), continue routing them through the 'Housing Preferences', 'Location & Lifestyle', and 'Breaks & Landlord' screens as normal.
+
+If role === 'host', completely bypass those three preference screens. Upon finishing their basic profile (name/avatar), route them directly into the 'Post My Apartment' screen.
+
+2. The 'Post My Apartment' Screen (Strict Validation):
+
+This screen must act as the ultimate gatekeeper for Hosts. They cannot proceed to the main app until it is filled out.
+
+Implement a strict isFormComplete check. The primary 'Publish Listing ✨' (or 'Continue') button at the bottom MUST be disabled and visually greyed out (Color(0xFFE0E8E9)) until EVERY field is filled.
+
+Required fields must include: Exact Location/Zone, Dates/Lease Term, Price, Landlord, and at least 1 uploaded Photo.
+
+3. Global State Integration:
+
+When the Host selects their Location Zone and Dates on this 'Post My Apartment' screen, save these values directly into the app's global Date and Location state. This ensures the date and location settings remain unified and global for all user roles across the app, even though the Host inputs them on a different screen.
+
+4. Auto-Categorization Logic:
+
+The app needs to automatically sort this new listing into the correct Browse category based on the dates the Host inputs.
+
+Implement logic when saving to Supabase:
+
+If the dates fall entirely between Mid-May and early August -> Tag as 'Summer Subleases'.
+
+If the dates are less than 14 days or specifically align with Fall/Spring breaks -> Tag as 'Short-Term & Gaps'.
+
+If it's a standard Aug-Dec or Jan-May -> Tag as 'Semester'.
+
+If it's a full 12 months -> Tag as 'Full-Year'.
+
+5. UI Styling:
+
+Maintain the Ponyo-inspired aesthetic: warm cream backgrounds, primary dark teal (#2C555C) text, and soft active coral (#FFFF8C69) buttons when the form is fully valid. No hard black lines."
