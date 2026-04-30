@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
-  Platform, KeyboardAvoidingView, ScrollView, Animated
+  Platform, KeyboardAvoidingView, ScrollView, Animated, ActivityIndicator
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -111,6 +111,14 @@ export default function ChatScreen() {
   const params = useLocalSearchParams<{ conversationId: string; source?: string }>();
   const { conversations, currentUser, getMessages, sendMessage, loadMessages } = useApp();
   const [text, setText] = useState("");
+  // Race-condition guard: setConversations fires before router.push, but the
+  // state update may not flush until after the chat screen mounts on web.
+  // Wait up to 800 ms before declaring the conversation missing.
+  const [convoReady, setConvoReady] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setConvoReady(true), 800);
+    return () => clearTimeout(t);
+  }, []);
   const source = params.source || "sublease";
   const activeChips = source === "crash_cash" ? CRASH_CASH_CHIPS
     : source === "coseeker" ? COSEEKER_CHIPS
@@ -138,6 +146,15 @@ export default function ChatScreen() {
     setText("");
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [text, params.conversationId, sendMessage]);
+
+  if (!convo && !convoReady) {
+    // State update from startConversation hasn't flushed yet — show spinner
+    return (
+      <View style={[styles.container, styles.centered, { paddingTop: topPadding + 12 }]}>
+        <ActivityIndicator size="large" color={DARK_TEAL} />
+      </View>
+    );
+  }
 
   if (!convo) {
     return (
@@ -407,6 +424,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 2,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   emptyState: {
     flex: 1,

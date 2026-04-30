@@ -3,12 +3,12 @@ import { getAnalytics, isSupported } from "firebase/analytics";
 import { getAuth, OAuthProvider } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAoIqAmnq-XQX6SNLqnb_pPXUo-kmg5DHg",
+  apiKey: "AIzaSyDf-O9OOarb4YLNQhpA21a8xxDH-4fZwQg",
   authDomain: "popmatch-6d273.firebaseapp.com",
   projectId: "popmatch-6d273",
   storageBucket: "popmatch-6d273.firebasestorage.app",
   messagingSenderId: "331036448795",
-  appId: "1:331036448795:web:26ff0c2c2ab173cf2f40be",
+  appId: "1:331036448795:ios:e9716786404ed1742f40be",
   measurementId: "G-E60LE54P5N"
 };
 

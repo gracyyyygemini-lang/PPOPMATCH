@@ -315,10 +315,26 @@ export default function ProfileScreen() {
   if (!currentUser) {
     return (
       <View style={[styles.container, { paddingTop: topPadding + 16 }]}>
-        <Text style={styles.headerTitle}>Profile</Text>
+        <View style={[styles.header, { paddingTop: 0 }]}>
+          <Text style={styles.headerTitle}>Profile</Text>
+        </View>
         <View style={styles.noProfile}>
-          <Ionicons name="person-outline" size={40} color={Colors.textLight} />
-          <Text style={styles.noProfileText}>No profile found</Text>
+          <Ionicons name="person-outline" size={44} color={Colors.textLight} />
+          <Text style={styles.noProfileText}>Profile not set up</Text>
+          <Text style={[styles.noProfileText, { fontSize: 13, color: Colors.textLight, marginTop: -4 }]}>
+            Complete onboarding to get started.
+          </Text>
+          <TouchableOpacity
+            style={styles.completeProfileBtn}
+            onPress={() => router.replace("/onboarding")}
+          >
+            <Text style={styles.completeProfileBtnText}>Complete Profile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleSignOut} style={{ marginTop: 8 }}>
+            <Text style={{ fontFamily: "Nunito_600SemiBold", fontSize: 13, color: Colors.textMuted }}>
+              Sign Out
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -937,6 +953,11 @@ const styles = StyleSheet.create({
   resetFullBtnText: { fontFamily: "Nunito_700Bold", fontSize: 14, color: Colors.errorRed },
   noProfile: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   noProfileText: { fontFamily: "Nunito_400Regular", fontSize: 14, color: Colors.textMuted },
+  completeProfileBtn: {
+    backgroundColor: Colors.ocean, borderRadius: 12,
+    paddingHorizontal: 28, paddingVertical: 13, marginTop: 4,
+  },
+  completeProfileBtnText: { fontFamily: "Nunito_700Bold", fontSize: 15, color: Colors.white },
   versionLabel: { alignItems: "center", paddingVertical: 12 },
   versionText: { fontFamily: "Nunito_400Regular", fontSize: 11, color: Colors.textLight },
 });

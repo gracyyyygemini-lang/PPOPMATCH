@@ -203,6 +203,28 @@ export const rt = {
   },
 
   /**
+   * Subscribe to new/updated marketplace listings (Illini Market).
+   * Returns an unsubscribe function.
+   */
+  onMarketListingChange(
+    handler: (event: "INSERT" | "UPDATE" | "DELETE", listing: any) => void
+  ): () => void {
+    const channel: RealtimeChannel = supabase
+      .channel("market_listings_changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "marketplace_listings" },
+        (payload) => handler(
+          payload.eventType as "INSERT" | "UPDATE" | "DELETE",
+          (payload.new ?? payload.old)
+        )
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  },
+
+  /**
    * Subscribe to new conversations for a Supabase user id.
    * Returns an unsubscribe function.
    */
@@ -377,6 +399,55 @@ export const db = {
 
     const { data, error } = await q;
     if (error) throw error;
+    return data ?? [];
+  },
+
+  /**
+   * Fetches all active users for the matchmaker, excluding the current user.
+   * Ordered by most recently created so newer users surface first.
+   */
+  async getMatchUsers(excludeFirebaseUid: string) {
+    const { data, error } = await supabase
+      .from("users")
+      .select(`
+        *,
+        user_organizations(organization),
+        user_landlord_prefs(landlord),
+        user_vibe_profiles(*,
+          user_vibe_vices(vice),
+          user_vibe_pets(pet)
+        )
+      `)
+      .neq("firebase_uid", excludeFirebaseUid)
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    if (error) throw error;
+    return data ?? [];
+  },
+
+  /**
+   * Fetches conversations with the most-recent message content/time for inbox preview.
+   * Uses a lateral join via PostgREST's embedded ordering.
+   */
+  async getConversationsWithPreview(supabaseUserId: string) {
+    const { data, error } = await supabase
+      .from("conversations")
+      .select(`
+        *,
+        p1:users!conversations_participant1_id_fkey(id, name, avatar_color, email, profile_image_url),
+        p2:users!conversations_participant2_id_fkey(id, name, avatar_color, email, profile_image_url),
+        messages(content, created_at)
+      `)
+      .or(`participant1_id.eq.${supabaseUserId},participant2_id.eq.${supabaseUserId}`)
+      .order("created_at", { foreignTable: "messages", ascending: false })
+      .limit(1, { foreignTable: "messages" })
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      // Fallback to plain getConversations if the lateral join fails
+      return null;
+    }
     return data ?? [];
   },
 };

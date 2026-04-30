@@ -297,7 +297,8 @@ export default function MarketScreen() {
   useEffect(() => { load(category); }, [category]);
 
   useEffect(() => {
-    const unsub = rt.onListingChange(() => load(category));
+    // marketplace_listings table, not the sublease listings table
+    const unsub = rt.onMarketListingChange(() => load(category));
     return unsub;
   }, [category]);
 

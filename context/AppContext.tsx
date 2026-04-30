@@ -413,6 +413,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [friends, setFriends]                     = useState<FriendRecord[]>([]);
   const [conversations, setConversations]         = useState<Conversation[]>([]);
   const [chatMessages, setChatMessages]           = useState<Record<string, ChatMessage[]>>({});
+  // Real users loaded from Supabase for the matchmaker. Falls back to MOCK_USERS
+  // until the DB query resolves (or if there are no other users yet).
+  const [realMatchUsers, setRealMatchUsers]       = useState<UserProfile[]>([]);
 
   // Real-time cleanup refs
   const rtListings  = useRef<(() => void) | null>(null);
@@ -489,7 +492,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const profile = mapDbUser(row);
           setCurrentUserState(profile);
           setSupabaseUserId(row.id);
-          await loadUserData(row.id);
+          await loadUserData(row.id, fbUser.uid);
+        } else {
+          // Firebase user exists but has no Supabase profile.
+          // This happens when onboarding's upsertUser call failed previously.
+          // Try to auto-create a minimal record so the app isn't bricked.
+          try {
+            const token = await fbUser.getIdToken();
+            const name = fbUser.displayName ?? fbUser.email?.split("@")[0] ?? "User";
+            const { id } = await fn.upsertUser(token, { name });
+            setSupabaseUserId(id);
+            const fresh = await db.getUserByFirebaseUid(fbUser.uid);
+            if (fresh) {
+              setCurrentUserState(mapDbUser(fresh));
+              await loadUserData(id, fbUser.uid);
+            }
+          } catch {
+            // Edge functions unavailable — reset onboarding so user re-runs setup
+            setIsOnboardedState(false);
+            await AsyncStorage.setItem("@popmatch_onboarded", "false");
+          }
         }
       } catch (err) {
         console.warn("AppContext: failed to load Supabase user", err);
@@ -516,7 +538,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function loadUserData(uid: string) {
+  async function loadUserData(uid: string, firebaseUid?: string) {
     try {
       const [friendRows, vouchRows, convoRows] = await Promise.all([
         db.getFriends(uid),
@@ -537,7 +559,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
         timestamp:     new Date(f.created_at ?? Date.now()).getTime(),
       })));
 
-      setConversations(convoRows.map((r: any) => mapDbConversation(r, uid)));
+      // Map conversations; try to extract last message preview if embedded
+      const mappedConvos = convoRows.map((r: any) => {
+        const convo = mapDbConversation(r, uid);
+        // PostgREST may embed messages array; grab the most-recent one for the preview
+        const msgs: any[] = r.messages ?? [];
+        if (msgs.length > 0) {
+          const last = msgs.reduce((a: any, b: any) =>
+            new Date(a.created_at) > new Date(b.created_at) ? a : b
+          );
+          convo.lastMessage    = last.content;
+          convo.lastMessageAt  = new Date(last.created_at).getTime();
+        }
+        return convo;
+      });
+      setConversations(mappedConvos);
 
       // Real-time: new conversations
       rtConvos.current?.();
@@ -549,6 +585,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
     } catch (err) {
       console.warn("loadUserData failed", err);
+    }
+
+    // Load real users for matchmaker in the background (non-blocking)
+    if (firebaseUid) {
+      db.getMatchUsers(firebaseUid)
+        .then(rows => {
+          if (rows.length > 0) {
+            setRealMatchUsers(rows.map(mapDbUser));
+          }
+        })
+        .catch(err => console.warn("getMatchUsers failed", err));
     }
   }
 
@@ -603,11 +650,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       setSupabaseUserId(id);
       // Reload the canonical version from DB
-      const fresh = await db.getUserByFirebaseUid(auth.currentUser?.uid ?? "");
+      const fbUid = auth.currentUser?.uid ?? "";
+      const fresh = await db.getUserByFirebaseUid(fbUid);
       if (fresh) {
         const profile = mapDbUser(fresh);
         setCurrentUserState(profile);
-        await loadUserData(id);
+        await loadUserData(id, fbUid);
       } else {
         setCurrentUserState({ ...user, id });
       }
@@ -939,23 +987,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
       c.id === conversationId ? { ...c, lastMessage: content, lastMessageAt: Date.now() } : c
     ));
 
-    // Persist to Supabase
-    getToken().then(token => fn.sendMessage(token, conversationId, content)).then(saved => {
-      // Replace optimistic entry with real DB id
-      setChatMessages(prev => ({
-        ...prev,
-        [conversationId]: (prev[conversationId] ?? []).map(m =>
-          m.id === optimisticMsg.id ? mapDbMessage(saved) : m
-        ),
-      }));
-    }).catch(err => {
-      console.error("sendMessage failed", err);
-      // Remove optimistic entry on failure
-      setChatMessages(prev => ({
-        ...prev,
-        [conversationId]: (prev[conversationId] ?? []).filter(m => m.id !== optimisticMsg.id),
-      }));
-    });
+    // Persist to Supabase (skip for local-only conversations — they have no DB row)
+    if (!conversationId.startsWith("local_")) {
+      getToken().then(token => fn.sendMessage(token, conversationId, content)).then(saved => {
+        // Replace optimistic entry with real DB id
+        setChatMessages(prev => ({
+          ...prev,
+          [conversationId]: (prev[conversationId] ?? []).map(m =>
+            m.id === optimisticMsg.id ? mapDbMessage(saved) : m
+          ),
+        }));
+      }).catch(err => {
+        console.error("sendMessage failed", err);
+        // Remove optimistic entry on failure
+        setChatMessages(prev => ({
+          ...prev,
+          [conversationId]: (prev[conversationId] ?? []).filter(m => m.id !== optimisticMsg.id),
+        }));
+      });
+    }
   };
 
   const getMessages = (conversationId: string): ChatMessage[] => {
@@ -963,10 +1013,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const loadMessages = async (conversationId: string) => {
+    // Local conversations have no DB row — skip fetch to preserve optimistic messages
+    if (conversationId.startsWith("local_")) return;
     try {
       const rows = await db.getMessages(conversationId);
       const msgs = rows.map(mapDbMessage);
       setChatMessages(prev => ({ ...prev, [conversationId]: msgs }));
+
+      // Update inbox preview with the most-recent message from DB
+      if (msgs.length > 0) {
+        const last = msgs[msgs.length - 1];
+        setConversations(prev => prev.map(c =>
+          c.id === conversationId
+            ? { ...c, lastMessage: last.content, lastMessageAt: last.createdAt }
+            : c
+        ));
+      }
 
       // Subscribe to real-time for this conversation (once)
       if (!msgChannels.current[conversationId]) {
@@ -978,6 +1040,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
             if (existing.some(m => m.id === mapped.id)) return prev;
             return { ...prev, [conversationId]: [...existing, mapped] };
           });
+          // Keep inbox preview current for incoming messages from the other participant
+          setConversations(prev => prev.map(c =>
+            c.id === conversationId
+              ? { ...c, lastMessage: mapped.content, lastMessageAt: mapped.createdAt }
+              : c
+          ));
         });
         msgChannels.current[conversationId] = unsub;
       }
@@ -996,14 +1064,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       };
     }
 
-    const target = MOCK_USERS.find(u => u.email === userEmail);
+    // Search real Supabase users first, fall back to mock users for dev
+    const allKnownUsers = realMatchUsers.length > 0 ? realMatchUsers : MOCK_USERS;
+    const target = allKnownUsers.find(u => u.email === userEmail);
     if (!target) {
       return { degree: null, isFriend: false, vouchedByFriend: null, sharedOrg: null, mutualFriends: [] };
     }
 
     const mutuals: MutualFriend[] = [];
     for (const friend of friends) {
-      const fm = MOCK_USERS.find(u => u.email === friend.email);
+      const fm = allKnownUsers.find(u => u.email === friend.email);
       if (!fm) continue;
       const friendKnowsTarget = (fm.organizations ?? []).some(org =>
         (target.organizations ?? []).includes(org)
@@ -1040,7 +1110,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({
     currentUser, setCurrentUser, isOnboarded, setIsOnboarded,
     otpVerifiedEmail, setOtpVerifiedEmail,
-    mockUsers: MOCK_USERS, matches, addMatch, scamBannerDismissed, dismissScamBanner,
+    // mockUsers: real Supabase users when loaded, MOCK_USERS as fallback for dev
+    mockUsers: realMatchUsers.length > 0 ? realMatchUsers : MOCK_USERS,
+    matches, addMatch, scamBannerDismissed, dismissScamBanner,
     likedUserIds, passedUserIds, addLiked, addPassed, computeScore,
     subleases, addSublease, removeSublease,
     crashPosts, addCrashPost, updateCrashPost,
@@ -1051,7 +1123,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }), [
     currentUser, isOnboarded, otpVerifiedEmail, matches, scamBannerDismissed,
     likedUserIds, passedUserIds, subleases, crashPosts, friends,
-    conversations, chatMessages, supabaseUserId,
+    conversations, chatMessages, supabaseUserId, realMatchUsers,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

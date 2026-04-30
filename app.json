@@ -14,8 +14,9 @@
       "backgroundColor": "#FDFBF7"
     },
     "ios": {
-      "supportsTablet": false,
-      "bundleIdentifier": "com.popmatch"
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "bundleIdentifier": "com.popmatch",
+      "supportsTablet": false
     },
     "android": {
       "package": "com.popmatch",
@@ -42,6 +43,14 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {
+        "origin": "https://replit.com/"
+      },
+      "eas": {
+        "projectId": "6c933431-fa4e-4ad0-83d7-5594a9ba3fd5"
+      }
     }
   }
 }
