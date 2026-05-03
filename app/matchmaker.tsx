@@ -349,11 +349,23 @@ export default function MatchmakerScreen() {
       <View style={styles.deckArea}>
         {remaining.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Ionicons name="checkmark-circle" size={52} color={Colors.grassGreen} />
-            <Text style={styles.emptyTitle}>All caught up!</Text>
-            <Text style={styles.emptySub}>Check your Inbox to connect with people you liked.</Text>
+            <Ionicons
+              name={filtered.length === 0 ? "people-outline" : "checkmark-circle"}
+              size={52}
+              color={filtered.length === 0 ? Colors.textLight : Colors.grassGreen}
+            />
+            <Text style={styles.emptyTitle}>
+              {filtered.length === 0 ? "No one here yet" : "All caught up!"}
+            </Text>
+            <Text style={styles.emptySub}>
+              {filtered.length === 0
+                ? "You're one of the first. Share PopMatch with your classmates — your matches will appear here."
+                : "Check your Inbox to connect with people you liked."}
+            </Text>
             <TouchableOpacity style={styles.goMatchesBtn} onPress={() => router.push("/(tabs)/inbox")}>
-              <Text style={styles.goMatchesBtnText}>View Matches</Text>
+              <Text style={styles.goMatchesBtnText}>
+                {filtered.length === 0 ? "Go to Inbox" : "View Matches"}
+              </Text>
             </TouchableOpacity>
           </View>
         ) : (

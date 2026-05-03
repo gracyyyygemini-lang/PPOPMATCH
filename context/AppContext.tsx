@@ -3,9 +3,7 @@ import React, {
   useMemo, useRef, ReactNode,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase";
-import { fn, db, rt } from "@/lib/supabaseClient";
+import { supabase, fn, db, rt } from "@/lib/supabaseClient";
 
 // ─── Types (unchanged public API) ────────────────────────────
 export type LeaseType = "full_year" | "fall_sublease" | "spring_sublease" | "summer_sublease";
@@ -390,12 +388,12 @@ interface AppContextValue {
   mockLikedByIds: string[];
 }
 
-const MOCK_LIKED_BY_IDS = ["u1", "u3", "u5", "u7"];
 const AppContext = createContext<AppContextValue | null>(null);
 
-// ─── Helper: get Firebase ID token ───────────────────────────
+// ─── Helper: get Supabase session access token ────────────────
 async function getToken(): Promise<string> {
-  return auth.currentUser?.getIdToken() ?? "";
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token ?? "";
 }
 
 // ─── Provider ────────────────────────────────────────────────
@@ -474,51 +472,74 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // ── Firebase auth state drives Supabase user load ──────────
+  // ── Supabase auth state drives user load ──────────────────
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (fbUser) => {
-      if (!fbUser) {
-        setCurrentUserState(null);
-        setSupabaseUserId(null);
-        setFriends([]);
-        setConversations([]);
-        rtConvos.current?.();
+    // Check for an existing session on mount (covers app restarts)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) loadSupabaseUser(session.user.id);
+    });
+
+    // Listen for sign-in / sign-out / token-refresh events
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (!session?.user) {
+          setCurrentUserState(null);
+          setSupabaseUserId(null);
+          setFriends([]);
+          setConversations([]);
+          rtConvos.current?.();
+          return;
+        }
+        await loadSupabaseUser(session.user.id);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  async function loadSupabaseUser(uid: string) {
+    try {
+      const row = await db.getUserByUid(uid);
+      if (row) {
+        setCurrentUserState(mapDbUser(row));
+        setSupabaseUserId(row.id);
+        // A valid session + existing user row = user is fully onboarded.
+        // Set this synchronously so any component reading isOnboarded sees true
+        // without waiting for the AsyncStorage read that happens on mount.
+        setIsOnboardedState(true);
+        AsyncStorage.setItem("@popmatch_onboarded", "true");
+        await loadUserData(row.id, uid);
         return;
       }
 
+      // No public.users row found for this session uid.
+      // This happens for brand-new users who haven't completed onboarding yet.
+      // Strategy: upsert a minimal row so the app remains usable; upsert-user
+      // conflicts on id, so re-running this is always idempotent.
       try {
-        const row = await db.getUserByFirebaseUid(fbUser.uid);
-        if (row) {
-          const profile = mapDbUser(row);
-          setCurrentUserState(profile);
-          setSupabaseUserId(row.id);
-          await loadUserData(row.id, fbUser.uid);
-        } else {
-          // Firebase user exists but has no Supabase profile.
-          // This happens when onboarding's upsertUser call failed previously.
-          // Try to auto-create a minimal record so the app isn't bricked.
-          try {
-            const token = await fbUser.getIdToken();
-            const name = fbUser.displayName ?? fbUser.email?.split("@")[0] ?? "User";
-            const { id } = await fn.upsertUser(token, { name });
-            setSupabaseUserId(id);
-            const fresh = await db.getUserByFirebaseUid(fbUser.uid);
-            if (fresh) {
-              setCurrentUserState(mapDbUser(fresh));
-              await loadUserData(id, fbUser.uid);
-            }
-          } catch {
-            // Edge functions unavailable — reset onboarding so user re-runs setup
-            setIsOnboardedState(false);
-            await AsyncStorage.setItem("@popmatch_onboarded", "false");
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token && session.user?.email) {
+          const name = session.user.email.split("@")[0];
+          const { id } = await fn.upsertUser(session.access_token, { name });
+          setSupabaseUserId(id);
+          const fresh = await db.getUserByUid(uid);
+          if (fresh) {
+            setCurrentUserState(mapDbUser(fresh));
+            await loadUserData(id, uid);
+            return;
           }
         }
-      } catch (err) {
-        console.warn("AppContext: failed to load Supabase user", err);
+      } catch (autoErr) {
+        console.warn("AppContext: auto-upsert failed", autoErr);
       }
-    });
-    return unsub;
-  }, []);
+
+      // Still no row — send user back through onboarding to fill in their profile
+      setIsOnboardedState(false);
+      await AsyncStorage.setItem("@popmatch_onboarded", "false");
+    } catch (err) {
+      console.warn("AppContext: failed to load user", err);
+    }
+  }
 
   async function loadListings() {
     try {
@@ -538,7 +559,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function loadUserData(uid: string, firebaseUid?: string) {
+  async function loadUserData(uid: string, authUid?: string) {
     try {
       const [friendRows, vouchRows, convoRows] = await Promise.all([
         db.getFriends(uid),
@@ -588,8 +609,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     // Load real users for matchmaker in the background (non-blocking)
-    if (firebaseUid) {
-      db.getMatchUsers(firebaseUid)
+    if (authUid) {
+      db.getMatchUsers(authUid)
         .then(rows => {
           if (rows.length > 0) {
             setRealMatchUsers(rows.map(mapDbUser));
@@ -607,9 +628,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setSupabaseUserId(null);
       return;
     }
-    // Save to Supabase via Edge Function, then reload canonical version
+    // ── Step 1: persist to Supabase (critical — must succeed) ──────
+    let savedId: string;
     try {
       const token = await getToken();
+      if (!token) throw new Error("No active session — sign in first");
       const { id } = await fn.upsertUser(token, {
         name:             user.name,
         major:            user.major,
@@ -647,22 +670,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
           promptAnswer:    user.vibeProfile.promptAnswer,
         } : undefined,
       });
-
+      savedId = id;
       setSupabaseUserId(id);
-      // Reload the canonical version from DB
-      const fbUid = auth.currentUser?.uid ?? "";
-      const fresh = await db.getUserByFirebaseUid(fbUid);
+    } catch (err) {
+      // Profile was NOT saved to DB. Set local state so the UI doesn't freeze,
+      // but re-throw so callers (e.g. handleFinish) can surface the error.
+      console.error("setCurrentUser: upsert-user failed —", err);
+      setCurrentUserState(user);
+      throw err;
+    }
+
+    // ── Step 2: reload canonical version from DB (non-critical) ────
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const uid = session?.user?.id ?? savedId;
+      const fresh = await db.getUserByUid(uid);
       if (fresh) {
-        const profile = mapDbUser(fresh);
-        setCurrentUserState(profile);
-        await loadUserData(id, fbUid);
+        setCurrentUserState(mapDbUser(fresh));
+        await loadUserData(savedId, uid);
       } else {
-        setCurrentUserState({ ...user, id });
+        setCurrentUserState({ ...user, id: savedId });
       }
     } catch (err) {
-      console.error("setCurrentUser failed", err);
-      // Optimistic fallback: set locally so UI doesn't break
-      setCurrentUserState(user);
+      // Row IS in the DB (upsert succeeded). This is a read-back failure — not critical.
+      console.warn("setCurrentUser: reload from DB failed (non-critical) —", err);
+      setCurrentUserState({ ...user, id: savedId });
     }
   };
 
@@ -1064,8 +1096,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       };
     }
 
-    // Search real Supabase users first, fall back to mock users for dev
-    const allKnownUsers = realMatchUsers.length > 0 ? realMatchUsers : MOCK_USERS;
+    const allKnownUsers = realMatchUsers;
     const target = allKnownUsers.find(u => u.email === userEmail);
     if (!target) {
       return { degree: null, isFriend: false, vouchedByFriend: null, sharedOrg: null, mutualFriends: [] };
@@ -1110,8 +1141,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({
     currentUser, setCurrentUser, isOnboarded, setIsOnboarded,
     otpVerifiedEmail, setOtpVerifiedEmail,
-    // mockUsers: real Supabase users when loaded, MOCK_USERS as fallback for dev
-    mockUsers: realMatchUsers.length > 0 ? realMatchUsers : MOCK_USERS,
+    mockUsers: realMatchUsers,
     matches, addMatch, scamBannerDismissed, dismissScamBanner,
     likedUserIds, passedUserIds, addLiked, addPassed, computeScore,
     subleases, addSublease, removeSublease,
@@ -1119,7 +1149,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     friends, addFriend, removeFriend, toggleVouch, getTrustInfo,
     conversations, startConversation, startMatchConversation,
     sendMessage, getMessages, loadMessages,
-    mockLikedByIds: MOCK_LIKED_BY_IDS,
+    mockLikedByIds: [] as string[],
   }), [
     currentUser, isOnboarded, otpVerifiedEmail, matches, scamBannerDismissed,
     likedUserIds, passedUserIds, subleases, crashPosts, friends,

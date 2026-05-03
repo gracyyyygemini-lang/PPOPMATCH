@@ -1,9 +1,9 @@
 ﻿// POST /functions/v1/toggle-vouch
 // Adds or removes a vouch. Only existing friends can vouch.
 // Body: { targetEmail: string, message?: string }
-// Requires: Authorization: Bearer <firebase-id-token>
+// Requires: Authorization: Bearer <supabase-session-token>
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { verifyFirebaseToken } from "../_shared/firebase.ts";
+import { verifyToken } from "../_shared/auth.ts";
 import { adminClient } from "../_shared/supabase-admin.ts";
 import { CORS_HEADERS, corsResponse, corsError, msgOf } from "../_shared/cors.ts";
 
@@ -11,24 +11,23 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
 
   try {
-    const claims = await verifyFirebaseToken(req.headers.get("Authorization"));
+    const claims = await verifyToken(req.headers.get("Authorization"));
 
     const { targetEmail, message = "" } = await req.json();
     if (!targetEmail) return corsError("targetEmail is required");
 
-    const [{ data: me }, { data: them }] = await Promise.all([
-      adminClient.from("users").select("id").eq("firebase_uid", claims.uid).single(),
-      adminClient.from("users").select("id").eq("email", targetEmail.toLowerCase()).single(),
-    ]);
+    const { data: them } = await adminClient
+      .from("users").select("id").eq("email", targetEmail.toLowerCase()).single();
 
-    if (!me)   return corsError("User not found", 404);
     if (!them) return corsError("Target user not found", 404);
+
+    const myId = claims.uid;
 
     // Must be friends to vouch
     const { data: friendship } = await adminClient
       .from("friendships")
       .select("user_id")
-      .eq("user_id", me.id)
+      .eq("user_id", myId)
       .eq("friend_id", them.id)
       .maybeSingle();
 
@@ -38,7 +37,7 @@ serve(async (req) => {
     const { data: existingVouch } = await adminClient
       .from("vouches")
       .select("voucher_id")
-      .eq("voucher_id", me.id)
+      .eq("voucher_id", myId)
       .eq("vouchee_id", them.id)
       .maybeSingle();
 
@@ -46,12 +45,12 @@ serve(async (req) => {
       await adminClient
         .from("vouches")
         .delete()
-        .eq("voucher_id", me.id)
+        .eq("voucher_id", myId)
         .eq("vouchee_id", them.id);
       return corsResponse({ vouched: false });
     } else {
       await adminClient.from("vouches").insert({
-        voucher_id: me.id,
+        voucher_id: myId,
         vouchee_id: them.id,
         message:    message.trim(),
       });

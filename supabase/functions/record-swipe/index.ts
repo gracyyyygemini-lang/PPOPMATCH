@@ -1,10 +1,10 @@
 ﻿// POST /functions/v1/record-swipe
 // Records a matchmaker swipe (like or pass) and checks for a mutual match.
-// Body: { targetFirebaseUid: string, liked: boolean, score: number }
+// Body: { targetUserId: string, liked: boolean, score: number }
 // Returns: { matched: boolean }
-// Requires: Authorization: Bearer <firebase-id-token>
+// Requires: Authorization: Bearer <supabase-session-token>
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { verifyFirebaseToken } from "../_shared/firebase.ts";
+import { verifyToken } from "../_shared/auth.ts";
 import { adminClient } from "../_shared/supabase-admin.ts";
 import { CORS_HEADERS, corsResponse, corsError, msgOf } from "../_shared/cors.ts";
 
@@ -12,15 +12,15 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
 
   try {
-    const claims = await verifyFirebaseToken(req.headers.get("Authorization"));
+    const claims = await verifyToken(req.headers.get("Authorization"));
 
-    const { targetFirebaseUid, liked, score = 0 } = await req.json();
-    if (!targetFirebaseUid) return corsError("targetFirebaseUid is required");
+    const { targetUserId, liked, score = 0 } = await req.json();
+    if (!targetUserId) return corsError("targetUserId is required");
     if (typeof liked !== "boolean") return corsError("liked must be boolean");
 
     const [{ data: me }, { data: them }] = await Promise.all([
-      adminClient.from("users").select("id").eq("firebase_uid", claims.uid).single(),
-      adminClient.from("users").select("id").eq("firebase_uid", targetFirebaseUid).single(),
+      adminClient.from("users").select("id").eq("id", claims.uid).single(),
+      adminClient.from("users").select("id").eq("id", targetUserId).single(),
     ]);
 
     if (!me)   return corsError("User not found", 404);

@@ -10,28 +10,9 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
 import { fn, supabase } from "@/lib/supabaseClient";
-import { auth } from "@/lib/firebase";
+import { uploadImageUris } from "@/lib/uploadImage";
 
 const MAX_PHOTOS = 4;
-
-async function uploadImages(localUris: string[]): Promise<string[]> {
-  const urls: string[] = [];
-  for (const uri of localUris) {
-    const resp = await fetch(uri);
-    const blob = await resp.blob();
-    // Derive extension from MIME type — blob: and file: URIs have no extension
-    const mime = blob.type || "image/jpeg";
-    const ext = mime.includes("png") ? "png" : mime.includes("gif") ? "gif" : mime.includes("webp") ? "webp" : "jpg";
-    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const { error } = await supabase.storage
-      .from("market-images")
-      .upload(path, blob, { contentType: mime });
-    if (error) throw new Error(`Upload failed: ${error.message}`);
-    const { data } = supabase.storage.from("market-images").getPublicUrl(path);
-    urls.push(data.publicUrl);
-  }
-  return urls;
-}
 
 type MarketCategory = "textbooks" | "tech" | "furniture" | "bikes" | "clothing" | "other";
 type MarketCondition = "new" | "like_new" | "good" | "fair" | "for_parts";
@@ -69,21 +50,24 @@ export default function PostMarketItemScreen() {
   const [cash, setCash]               = useState(true);
   const [zelle, setZelle]             = useState(false);
   const [submitting, setSubmitting]   = useState(false);
-  const [localImages, setLocalImages] = useState<string[]>([]);
   const [uploading, setUploading]     = useState(false);
+  const [localImages, setLocalImages] = useState<string[]>([]);
 
   const canSubmit = title.trim().length > 0 && price.trim().length > 0 && !isNaN(Number(price)) && Number(price) >= 0;
 
   const pickImage = async () => {
     if (localImages.length >= MAX_PHOTOS) return;
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.75,
+      base64: true,
     });
-    if (!result.canceled && result.assets?.[0]?.uri) {
-      setLocalImages(prev => [...prev, result.assets[0].uri]);
+    if (!result.canceled && result.assets?.[0]?.base64) {
+      const asset = result.assets[0];
+      const mime = asset.mimeType ?? "image/jpeg";
+      setLocalImages(prev => [...prev, `data:${mime};base64,${asset.base64}`]);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
@@ -99,9 +83,11 @@ export default function PostMarketItemScreen() {
     setSubmitting(true);
     try {
       setUploading(localImages.length > 0);
-      const imageUrls = localImages.length > 0 ? await uploadImages(localImages) : [];
+      const imageUrls = await uploadImageUris(localImages, "market");
       setUploading(false);
-      const token = await auth.currentUser?.getIdToken() ?? "";
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token ?? "";
       await fn.postMarketListing(token, {
         title:          title.trim(),
         description:    description.trim(),

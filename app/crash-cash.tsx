@@ -13,6 +13,7 @@ import Colors from "@/constants/colors";
 import { useApp, CrashPost, CrashVibe, CrashCurrency, Zone } from "@/context/AppContext";
 import { useResponsive } from "@/hooks/useResponsive";
 import CustomAvatar from "@/components/CustomAvatar";
+import { uploadImageUri } from "@/lib/uploadImage";
 
 const DARK_TEAL = "#2C555C";
 const SUBTITLE_GREY = "#6B8A8F";
@@ -254,6 +255,7 @@ function NewPostSheet({
   const [currency, setCurrency] = useState<CrashCurrency>("cash");
   const [customCurrencyLabel, setCustomCurrencyLabel] = useState("");
   const [imageUri, setImageUri] = useState("");
+  const [uploading, setUploading] = useState(false);
   const insets = useSafeAreaInsets();
   const next10 = useMemo(getNext10Days, []);
 
@@ -263,9 +265,12 @@ function NewPostSheet({
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
+      base64: true,
     });
-    if (!result.canceled && result.assets?.[0]?.uri) {
-      setImageUri(result.assets[0].uri);
+    if (!result.canceled && result.assets?.[0]?.base64) {
+      const asset = result.assets[0];
+      const mime = asset.mimeType ?? "image/jpeg";
+      setImageUri(`data:${mime};base64,${asset.base64}`);
     }
   };
 
@@ -273,11 +278,24 @@ function NewPostSheet({
   const isDateValid = selectedDateIdx !== null && next10[selectedDateIdx].ts <= maxDate;
   const isFormComplete = !!story.trim() && isDateValid && !!imageUri;
 
-  const handleSubmit = () => {
-    if (!isFormComplete) return;
+  const handleSubmit = async () => {
+    if (!isFormComplete || uploading) return;
     const currOpt = CURRENCY_OPTIONS.find(c => c.key === currency);
     const label = customCurrencyLabel.trim() || `${currOpt?.emoji} ${currOpt?.label}`;
     const dateInfo = next10[selectedDateIdx!];
+
+    let uploadedImageUrl: string;
+    try {
+      setUploading(true);
+      uploadedImageUrl = await uploadImageUri(imageUri, "crash");
+    } catch (err: any) {
+      setUploading(false);
+      Alert.alert("Upload failed", err?.message ?? "Could not upload photo. Please try again.");
+      return;
+    } finally {
+      setUploading(false);
+    }
+
     onSubmit({
       vibe,
       story: story.trim(),
@@ -286,7 +304,7 @@ function NewPostSheet({
       zone,
       currency,
       currencyLabel: label,
-      imageUrl: imageUri,
+      imageUrl: uploadedImageUrl,
       approxLocation: approxLocation.trim() || undefined,
     });
     setStory("");
@@ -398,11 +416,13 @@ function NewPostSheet({
                 <Text style={np.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[np.submitBtn, !isFormComplete && { backgroundColor: DISABLED_BG }]}
+                style={[np.submitBtn, (!isFormComplete || uploading) && { backgroundColor: DISABLED_BG }]}
                 onPress={handleSubmit}
-                disabled={!isFormComplete}
+                disabled={!isFormComplete || uploading}
               >
-                <Text style={[np.submitBtnText, !isFormComplete && { color: DISABLED_TEXT }]}>Post to Feed ✨</Text>
+                <Text style={[np.submitBtnText, (!isFormComplete || uploading) && { color: DISABLED_TEXT }]}>
+                  {uploading ? "Uploading…" : "Post to Feed ✨"}
+                </Text>
               </TouchableOpacity>
             </View>
           </ScrollView>

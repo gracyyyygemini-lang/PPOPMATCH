@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView,
   Pressable, Modal, Platform, Animated, Image, Alert, ActivityIndicator,
+  TextInput,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,8 +10,7 @@ import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useApp } from "@/context/AppContext";
-import { db, fn, rt } from "@/lib/supabaseClient";
-import { auth } from "@/lib/firebase";
+import { db, fn, rt, supabase } from "@/lib/supabaseClient";
 import { useResponsive } from "@/hooks/useResponsive";
 import CustomAvatar from "@/components/CustomAvatar";
 
@@ -77,7 +77,7 @@ function mapRow(row: any): MarketListing {
     acceptsVenmo:   row.accepts_venmo,
     acceptsCash:    row.accepts_cash,
     acceptsZelle:   row.accepts_zelle,
-    images:         row.images ?? [],
+    images:         Array.isArray(row.images) ? row.images : [],
     isSold:         row.is_sold,
     createdAt:      new Date(row.created_at).getTime(),
   };
@@ -97,17 +97,20 @@ function timeAgo(ts: number): string {
 function MarketCard({ item, onPress }: { item: MarketListing; onPress: () => void }) {
   const cat = CATEGORIES.find(c => c.id === item.category) ?? CATEGORIES[6];
   const cond = CONDITIONS[item.condition];
-  const hasImage = item.images.length > 0;
+  const imageUri = item.images.length > 0 ? item.images[0] : null;
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
-      {/* Photo / placeholder */}
+      {/* Photo area — icon is always rendered as fallback; image overlays it when loaded */}
       <View style={[styles.cardPhoto, { backgroundColor: cat.bg }]}>
-        {hasImage ? (
-          <Image source={{ uri: item.images[0] }} style={styles.cardImage} resizeMode="cover" />
-        ) : (
-          <Ionicons name={cat.icon} size={32} color={cat.color + "80"} />
-        )}
+        <Ionicons name={cat.icon} size={32} color={cat.color + "80"} />
+        {imageUri ? (
+          <Image
+            source={{ uri: imageUri }}
+            style={StyleSheet.absoluteFillObject}
+            resizeMode="cover"
+          />
+        ) : null}
         <View style={[styles.condBadge, { backgroundColor: cond.bg }]}>
           <Text style={[styles.condBadgeText, { color: cond.color }]}>{cond.label}</Text>
         </View>
@@ -183,14 +186,17 @@ function DetailModal({
         >
           <View style={dmStyles.handle} />
 
-          {/* Image or placeholder */}
-          {item.images.length > 0 ? (
-            <Image source={{ uri: item.images[0] }} style={dmStyles.photo} resizeMode="cover" />
-          ) : (
-            <View style={[dmStyles.photoPlaceholder, { backgroundColor: cat.bg }]}>
-              <Ionicons name={cat.icon} size={56} color={cat.color + "60"} />
-            </View>
-          )}
+          {/* Image or placeholder — icon always rendered; image overlays when loaded */}
+          <View style={[dmStyles.photoPlaceholder, { backgroundColor: cat.bg }]}>
+            <Ionicons name={cat.icon} size={56} color={cat.color + "60"} />
+            {item.images.length > 0 ? (
+              <Image
+                source={{ uri: item.images[0] }}
+                style={StyleSheet.absoluteFillObject}
+                resizeMode="cover"
+              />
+            ) : null}
+          </View>
 
           <ScrollView style={dmStyles.scroll} showsVerticalScrollIndicator={false}>
             {/* Category + condition */}
@@ -281,6 +287,7 @@ export default function MarketScreen() {
   const [loading, setLoading]   = useState(true);
   const [category, setCategory] = useState<MarketCategory>("all");
   const [selected, setSelected] = useState<MarketListing | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const load = useCallback(async (cat: MarketCategory) => {
     try {
@@ -304,7 +311,8 @@ export default function MarketScreen() {
 
   const handleMarkSold = async (id: string) => {
     try {
-      const token = await auth.currentUser?.getIdToken() ?? "";
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token ?? "";
       await fn.markSold(token, id);
       setListings(prev => prev.filter(l => l.id !== id));
       setSelected(null);
@@ -324,7 +332,10 @@ export default function MarketScreen() {
   };
 
   const numCols = isDesktop ? 3 : 2;
-  const cardWidth = isDesktop ? undefined : undefined;
+  const q = searchQuery.trim().toLowerCase();
+  const visibleListings = q
+    ? listings.filter(l => l.title.toLowerCase().includes(q))
+    : listings;
 
   return (
     <View style={[styles.container, { backgroundColor: Colors.sand }]}>
@@ -372,23 +383,47 @@ export default function MarketScreen() {
         })}
       </ScrollView>
 
+      {/* Search bar */}
+      <View style={styles.searchRow}>
+        <Ionicons name="search-outline" size={16} color={Colors.textMuted} style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search listings…"
+          placeholderTextColor={Colors.textLight}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+          autoCorrect={false}
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery("")} style={styles.searchClear}>
+            <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
+          </TouchableOpacity>
+        )}
+      </View>
+
       {/* Grid */}
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color={Colors.ocean} size="large" />
         </View>
-      ) : listings.length === 0 ? (
+      ) : visibleListings.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="storefront-outline" size={44} color={Colors.textLight} />
-          <Text style={styles.emptyTitle}>Nothing here yet</Text>
-          <Text style={styles.emptySub}>Be the first to list something!</Text>
-          <TouchableOpacity style={styles.emptyBtn} onPress={() => router.push("/post-market-item")}>
-            <Text style={styles.emptyBtnText}>Sell Something</Text>
-          </TouchableOpacity>
+          <Ionicons name={q ? "search-outline" : "storefront-outline"} size={44} color={Colors.textLight} />
+          <Text style={styles.emptyTitle}>{q ? "No results" : "Nothing here yet"}</Text>
+          <Text style={styles.emptySub}>
+            {q ? `No listings match "${searchQuery}"` : "Be the first to list something!"}
+          </Text>
+          {!q && (
+            <TouchableOpacity style={styles.emptyBtn} onPress={() => router.push("/post-market-item")}>
+              <Text style={styles.emptyBtnText}>Sell Something</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : (
         <FlatList
-          data={listings}
+          data={visibleListings}
           keyExtractor={item => item.id}
           numColumns={numCols}
           key={numCols}
@@ -480,6 +515,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5, paddingVertical: 2,
   },
   payChipText: { fontSize: 11 },
+  searchRow: {
+    flexDirection: "row", alignItems: "center",
+    marginHorizontal: 16, marginTop: 8, marginBottom: 4,
+    backgroundColor: Colors.white, borderRadius: 12,
+    borderWidth: 1.5, borderColor: Colors.borderSoft,
+    paddingHorizontal: 10, paddingVertical: 8,
+  },
+  searchIcon: { marginRight: 6 },
+  searchInput: {
+    flex: 1, fontFamily: "Nunito_400Regular", fontSize: 14, color: Colors.charcoal,
+    paddingVertical: 0,
+  },
+  searchClear: { padding: 2 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
   emptyTitle: { fontFamily: "Nunito_700Bold", fontSize: 18, color: Colors.charcoal },
   emptySub: { fontFamily: "Nunito_400Regular", fontSize: 13, color: Colors.textMuted },
@@ -499,8 +547,9 @@ const dmStyles = StyleSheet.create({
   },
   photo: { width: "100%", height: 220 },
   photoPlaceholder: {
-    width: "100%", height: 180,
+    width: "100%", height: 220,
     alignItems: "center", justifyContent: "center",
+    overflow: "hidden",
   },
   scroll: { paddingHorizontal: 20 },
   badgeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 16, marginBottom: 8 },

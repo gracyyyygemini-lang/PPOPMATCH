@@ -76,3 +76,21 @@ LEFT JOIN LATERAL (
 
 -- Grant anon read on the view (RLS on underlying tables still applies)
 GRANT SELECT ON conversation_last_message TO anon, authenticated;
+
+-- 5. Enforce @illinois.edu emails at the database level.
+--    This fires before any INSERT on auth.users, so even direct API calls to
+--    Supabase auth (bypassing the frontend) are rejected.
+CREATE OR REPLACE FUNCTION public.enforce_illinois_email()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  IF NEW.email IS NULL OR NEW.email NOT LIKE '%@illinois.edu' THEN
+    RAISE EXCEPTION 'Only @illinois.edu email addresses are permitted.';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_enforce_illinois_email ON auth.users;
+CREATE TRIGGER trg_enforce_illinois_email
+  BEFORE INSERT OR UPDATE OF email ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.enforce_illinois_email();

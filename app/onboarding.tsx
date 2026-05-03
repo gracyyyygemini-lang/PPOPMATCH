@@ -13,16 +13,13 @@ import {
   ActivityIndicator,
   Dimensions,
   Image,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
-import { OAuthProvider, onAuthStateChanged, signInWithCredential } from "firebase/auth";
-import { useAuthRequest } from "expo-auth-session";
-import * as AuthSession from "expo-auth-session";
-import * as WebBrowser from "expo-web-browser";
 import Colors from "@/constants/colors";
 import {
   useApp,
@@ -33,10 +30,8 @@ import {
   Landlord,
   Intent,
 } from "@/context/AppContext";
-import { auth } from "@/lib/firebase";
-
-// Required to complete auth session redirect in Expo Go
-WebBrowser.maybeCompleteAuthSession();
+import { supabase, fn } from "@/lib/supabaseClient";
+import { uploadImageUri } from "@/lib/uploadImage";
 
 const MAJORS = [
   "Accountancy", "Aerospace Engineering", "Agricultural & Biological Engineering",
@@ -186,11 +181,96 @@ function PonyoProgress({ step, total }: { step: number; total: number }) {
   );
 }
 
-const MICROSOFT_CLIENT_ID = "a7b7185f-fa09-4162-80de-5cfd6e8b7870";
-const MS_DISCOVERY = {
-  authorizationEndpoint: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
-  tokenEndpoint: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
-};
+const otpBoxStyles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    gap: 10,
+    justifyContent: "center",
+    paddingVertical: 8,
+  },
+  box: {
+    width: 46,
+    height: 56,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: Colors.borderSoft,
+    backgroundColor: Colors.white,
+    fontSize: 24,
+    fontFamily: "Nunito_800ExtraBold",
+    color: Colors.teal,
+  },
+  boxFilled: {
+    borderColor: Colors.teal,
+    backgroundColor: Colors.teal + "12",
+  },
+});
+
+// ─── 6-box OTP digit input ───────────────────────────────────
+function OtpBoxes({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const inputRefs = useRef<Array<TextInput | null>>(
+    Array.from({ length: 6 }, () => null)
+  );
+  const [digits, setDigits] = useState<string[]>(() =>
+    Array.from({ length: 6 }, (_, i) => value[i] ?? "")
+  );
+
+  // Auto-focus first box when the code step mounts
+  useEffect(() => {
+    const t = setTimeout(() => inputRefs.current[0]?.focus(), 150);
+    return () => clearTimeout(t);
+  }, []);
+
+  function update(next: string[]) {
+    setDigits(next);
+    onChange(next.join(""));
+  }
+
+  function handleChange(i: number, text: string) {
+    const cleaned = text.replace(/[^0-9]/g, "");
+    if (cleaned.length > 1) {
+      // Paste: distribute across all boxes from position 0
+      const arr = Array.from({ length: 6 }, (_, j) => cleaned[j] ?? "");
+      update(arr);
+      inputRefs.current[Math.min(cleaned.length - 1, 5)]?.focus();
+      return;
+    }
+    const next = [...digits];
+    next[i] = cleaned;
+    update(next);
+    if (cleaned && i < 5) inputRefs.current[i + 1]?.focus();
+  }
+
+  function handleKey(i: number, key: string) {
+    if (key === "Backspace" && !digits[i] && i > 0) {
+      inputRefs.current[i - 1]?.focus();
+    }
+  }
+
+  return (
+    <View style={otpBoxStyles.row}>
+      {digits.map((digit, i) => (
+        <TextInput
+          key={i}
+          ref={r => { inputRefs.current[i] = r; }}
+          style={[otpBoxStyles.box, !!digit && otpBoxStyles.boxFilled]}
+          value={digit}
+          onChangeText={t => handleChange(i, t)}
+          onKeyPress={({ nativeEvent }) => handleKey(i, nativeEvent.key)}
+          keyboardType="number-pad"
+          maxLength={1}
+          selectTextOnFocus
+          textAlign="center"
+        />
+      ))}
+    </View>
+  );
+}
 
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
@@ -199,7 +279,6 @@ export default function OnboardingScreen() {
   const [step, setStep] = useState(0);
 
   const [email, setEmail] = useState("");
-  const [popupLoading, setPopupLoading] = useState(false);
 
   const [name, setName] = useState("");
   const [major, setMajor] = useState("");
@@ -218,73 +297,56 @@ export default function OnboardingScreen() {
   const [intent, setIntent] = useState<Intent>("joiner");
   const [profileImage, setProfileImage] = useState<string | null>(null);
 
-  const msRedirectUri = AuthSession.makeRedirectUri({ scheme: "popmatch" });
-  const [msRequest, , msPromptAsync] = useAuthRequest(
-    { clientId: MICROSOFT_CLIENT_ID, scopes: ["openid", "profile", "email"], redirectUri: msRedirectUri, usePKCE: true },
-    MS_DISCOVERY,
-  );
+  // ── OTP state ────────────────────────────────────────────
+  const [otpSubStep, setOtpSubStep]   = useState<"email" | "code">("email");
+  const [otpEmail, setOtpEmail]       = useState("");
+  const [otpCode, setOtpCode]         = useState("");
+  const [otpSending, setOtpSending]   = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpError, setOtpError]       = useState("");
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (sessionUser) => {
-      if (!sessionUser) return;
-
-      if (sessionUser.email) {
-        setEmail((prev) => prev || sessionUser.email || "");
-        setOtpVerifiedEmail(sessionUser.email);
-      }
-
-      if (sessionUser.displayName) {
-        setName((prev) => prev || sessionUser.displayName || "");
-      }
-      setStep((prev) => (prev === 0 ? 1 : prev));
-    });
-
-    return unsubscribe;
-  }, [setOtpVerifiedEmail]);
-
-  async function signInWithUIUC() {
-    if (!msRequest) return;
-    setPopupLoading(true);
+  // ── Supabase email OTP ────────────────────────────────────
+  async function handleSendOtp() {
+    const emailTrimmed = otpEmail.trim().toLowerCase();
+    if (!emailTrimmed.endsWith("@illinois.edu")) {
+      setOtpError("Only @illinois.edu addresses are allowed.");
+      return;
+    }
+    setOtpError("");
+    setOtpSending(true);
     try {
-      const result = await msPromptAsync();
-      if (result.type !== "success") return;
-
-      // Exchange auth code for real tokens using PKCE verifier
-      const tokenRes = await fetch(MS_DISCOVERY.tokenEndpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          client_id: MICROSOFT_CLIENT_ID,
-          grant_type: "authorization_code",
-          code: result.params.code,
-          redirect_uri: msRedirectUri,
-          code_verifier: msRequest.codeVerifier!,
-        }).toString(),
-      });
-      const tokens = await tokenRes.json();
-      if (!tokens.id_token) {
-        console.error("UIUC sign-in: no id_token", tokens);
-        return;
-      }
-
-      const provider = new OAuthProvider("microsoft.com");
-      const credential = provider.credential({ idToken: tokens.id_token, accessToken: tokens.access_token });
-      const fbResult = await signInWithCredential(auth, credential);
-      const user = fbResult.user;
-
-      if (user?.email) {
-        setEmail(user.email);
-        setOtpVerifiedEmail(user.email);
-      }
-      if (user?.displayName) {
-        setName((prev) => prev || user.displayName || "");
-      }
-      setStep(1);
+      const { error } = await supabase.auth.signInWithOtp({ email: emailTrimmed });
+      if (error) throw error;
+      setOtpSubStep("code");
+      setOtpCode("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error: any) {
-      console.error("UIUC sign-in failed:", error);
+    } catch (err: any) {
+      setOtpError(err.message ?? "Failed to send code. Please try again.");
     } finally {
-      setPopupLoading(false);
+      setOtpSending(false);
+    }
+  }
+
+  async function handleVerifyOtp() {
+    setOtpError("");
+    setOtpVerifying(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: otpEmail.trim().toLowerCase(),
+        token: otpCode.trim(),
+        type: "email",
+      });
+      if (error) throw error;
+      const verified = otpEmail.trim().toLowerCase();
+      setEmail(verified);
+      setOtpVerifiedEmail(verified);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setStep(1);
+    } catch (err: any) {
+      setOtpError(err.message ?? "Invalid code. Please try again.");
+      setOtpCode("");
+    } finally {
+      setOtpVerifying(false);
     }
   }
 
@@ -293,14 +355,17 @@ export default function OnboardingScreen() {
 
   const pickProfileImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
+      base64: true,
     });
 
-    if (!result.canceled && result.assets?.[0]?.uri) {
-      setProfileImage(result.assets[0].uri);
+    if (!result.canceled && result.assets?.[0]?.base64) {
+      const asset = result.assets[0];
+      const mime = asset.mimeType ?? "image/jpeg";
+      setProfileImage(`data:${mime};base64,${asset.base64}`);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
@@ -381,7 +446,59 @@ export default function OnboardingScreen() {
       ...(profileImage ? { profileImage } : {}),
     };
 
-    await setCurrentUser(user);
+    // Upload profile photo to Storage before upserting (so the DB gets a public URL).
+    let profileImageUrl: string | undefined;
+    if (profileImage) {
+      try {
+        profileImageUrl = await uploadImageUri(profileImage, "avatars");
+        // Update local user object so setCurrentUser below also has the public URL
+        user.profileImage = profileImageUrl;
+      } catch (uploadErr: any) {
+        // Non-fatal: proceed without photo rather than blocking onboarding
+        console.warn("Profile photo upload failed:", uploadErr?.message);
+      }
+    }
+
+    // Persist profile to Supabase before routing. getSession() is the reliable
+    // source for the access token here — AppContext.getToken() can return ""
+    // if AsyncStorage hasn't propagated the session yet at this point in the flow.
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error("Session expired — please sign in again.");
+      }
+      await fn.upsertUser(session.access_token, {
+        name:             user.name,
+        major:            user.major,
+        bio:              user.bio,
+        budget:           user.budget,
+        gender:           user.gender,
+        genderPref:       user.genderPref,
+        cleanliness:      user.cleanliness,
+        noise:            user.noise,
+        leaseType:        user.leaseType,
+        zone:             user.zone,
+        landlords:        user.landlords,
+        staysThanksgiving: user.staysThanksgiving,
+        staysSpringBreak:  user.staysSpringBreak,
+        avatarColor:      user.avatarColor,
+        intent:           user.intent,
+        profileImageUrl,
+      });
+    } catch (err: any) {
+      const msg = err?.message ?? "Failed to save your profile. Check your connection and try again.";
+      console.error("upsert-user failed during onboarding:", msg);
+      Alert.alert("Couldn't save profile", msg);
+      return; // don't route — stay on screen so user can retry
+    }
+
+    // setCurrentUser also calls upsertUser (idempotent), but now re-throws on failure.
+    // Since we already persisted above, a failure here is non-critical — just log it.
+    try {
+      await setCurrentUser(user);
+    } catch (err) {
+      console.warn("setCurrentUser secondary upsert failed (non-critical):", err);
+    }
     await setIsOnboarded(true);
 
     switch (intent) {
@@ -446,20 +563,71 @@ export default function OnboardingScreen() {
             <Text style={styles.stepTitle}>Welcome to PopMatch</Text>
             <Text style={styles.stepSubtitle}>Sign in with your UIUC account to start PopMatch</Text>
 
-            <TouchableOpacity
-              style={[styles.otpSendBtn, popupLoading && { opacity: 0.7 }]}
-              onPress={signInWithUIUC}
-              disabled={popupLoading}
-            >
-              {popupLoading ? (
-                <ActivityIndicator color={Colors.white} size="small" />
-              ) : (
-                <>
-                  <Ionicons name="school-outline" size={16} color={Colors.white} />
-                  <Text style={styles.otpSendBtnText}>Continue with UIUC</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            {otpSubStep === "email" ? (
+              /* ── Mobile step A: email input ── */
+              <>
+                <TextInput
+                  style={styles.input}
+                  value={otpEmail}
+                  onChangeText={v => { setOtpEmail(v); setOtpError(""); }}
+                  placeholder="yournetid@illinois.edu"
+                  placeholderTextColor={Colors.textLight}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="done"
+                  onSubmitEditing={handleSendOtp}
+                />
+                {otpError ? (
+                  <Text style={otpStyles.error}>{otpError}</Text>
+                ) : null}
+                <TouchableOpacity
+                  style={[styles.otpSendBtn, (otpSending || !otpEmail.trim()) && { opacity: 0.5 }]}
+                  onPress={handleSendOtp}
+                  disabled={otpSending || !otpEmail.trim()}
+                >
+                  {otpSending ? (
+                    <ActivityIndicator color={Colors.white} size="small" />
+                  ) : (
+                    <Text style={styles.otpSendBtnText}>Send Code</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            ) : (
+              /* ── Mobile step B: 6-digit code input ── */
+              <>
+                <Text style={otpStyles.sentTo}>
+                  Code sent to {otpEmail.trim().toLowerCase()}
+                </Text>
+                <OtpBoxes
+                  value={otpCode}
+                  onChange={code => { setOtpCode(code); setOtpError(""); }}
+                />
+                {otpError ? (
+                  <Text style={otpStyles.error}>{otpError}</Text>
+                ) : null}
+                <TouchableOpacity
+                  style={[styles.otpSendBtn, (otpVerifying || otpCode.length !== 6) && { opacity: 0.5 }]}
+                  onPress={handleVerifyOtp}
+                  disabled={otpVerifying || otpCode.length !== 6}
+                >
+                  {otpVerifying ? (
+                    <ActivityIndicator color={Colors.white} size="small" />
+                  ) : (
+                    <Text style={styles.otpSendBtnText}>Verify Code</Text>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={otpStyles.resendBtn}
+                  onPress={handleSendOtp}
+                  disabled={otpSending}
+                >
+                  <Text style={otpStyles.resendText}>
+                    {otpSending ? "Sending…" : "Resend code"}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         )}
 
@@ -1145,5 +1313,35 @@ const styles = StyleSheet.create({
     fontFamily: "Nunito_800ExtraBold",
     fontSize: 16,
     color: Colors.white,
+  },
+});
+
+const otpStyles = StyleSheet.create({
+  error: {
+    fontFamily: "Nunito_600SemiBold",
+    fontSize: 13,
+    color: "#E74C3C",
+    textAlign: "center",
+  },
+  sentTo: {
+    fontFamily: "Nunito_400Regular",
+    fontSize: 13,
+    color: Colors.textMuted,
+    textAlign: "center",
+  },
+  codeInput: {
+    textAlign: "center",
+    fontSize: 28,
+    letterSpacing: 10,
+    fontFamily: "Nunito_800ExtraBold",
+  },
+  resendBtn: {
+    alignSelf: "center",
+    paddingVertical: 10,
+  },
+  resendText: {
+    fontFamily: "Nunito_600SemiBold",
+    fontSize: 13,
+    color: Colors.teal,
   },
 });

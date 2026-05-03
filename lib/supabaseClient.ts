@@ -1,36 +1,36 @@
 /**
  * PopMatch — Supabase client helper
  *
+ * Auth: Supabase email OTP only (no Firebase).
+ * Session is persisted to AsyncStorage so users stay signed in across restarts.
+ *
  * Security model:
  *   SUPABASE_ANON_KEY  — safe to expose; used for reads + real-time only.
  *   SUPABASE_SERVICE_ROLE_KEY — NEVER imported here; lives in Edge Functions only.
- *
- * All writes flow through Edge Functions, each of which verifies the
- * Firebase ID token before doing anything.
+ *   All writes flow through Edge Functions which verify the Supabase session token.
  *
  * Usage:
  *   import { supabase, fn, rt } from "@/lib/supabaseClient";
  *   const { data } = await supabase.from("listings").select("...");
- *   await fn.postListing(firebaseToken, payload);
+ *   await fn.postListing(token, payload);
  *   const unsub = rt.onNewMessage(convoId, handler);
  */
 
 import { createClient, RealtimeChannel } from "@supabase/supabase-js";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // ─── Public / anon client ─────────────────────────────────────
-const SUPABASE_URL  = process.env.EXPO_PUBLIC_SUPABASE_URL  ?? "";
-const SUPABASE_ANON = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
-
-// Debug: log exactly what URL is being used so we can spot any corruption
-console.log("SUPABASE URL:", JSON.stringify(SUPABASE_URL));
-console.log("ANON KEY set:", SUPABASE_ANON.length > 0);
-
-if (!SUPABASE_URL || !SUPABASE_ANON) {
-  console.warn("supabaseClient: EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY is not set");
-}
+// Hardcoded for debugging — swap back to process.env once env vars are confirmed working.
+const SUPABASE_URL  = "https://zjyzjbrotvyxcwlizwaa.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqeXpqYnJvdHZ5eGN3bGl6d2FhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwNzMzNTQsImV4cCI6MjA4NzY0OTM1NH0.7AcLEIICrdatVFRmc99qwWfg_eqQx6khponESAllGV4";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
-  auth: { persistSession: false },
+  auth: {
+    storage:            AsyncStorage,
+    persistSession:     true,
+    autoRefreshToken:   true,
+    detectSessionInUrl: false,
+  },
   realtime: { params: { eventsPerSecond: 10 } },
 });
 
@@ -39,14 +39,14 @@ const EDGE_BASE = `${SUPABASE_URL}/functions/v1`;
 
 async function callEdge<T = unknown>(
   path: string,
-  firebaseToken: string,
+  token: string,
   body?: unknown,
   method = "POST"
 ): Promise<T> {
   const res = await fetch(`${EDGE_BASE}/${path}`, {
     method,
     headers: {
-      "Authorization": `Bearer ${firebaseToken}`,
+      "Authorization": `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -62,7 +62,7 @@ async function callEdge<T = unknown>(
 
 // ─── Typed Edge Function helpers ──────────────────────────────
 export const fn = {
-  /** Creates or updates the full user profile after Firebase sign-in. */
+  /** Creates or updates the full user profile after sign-in. */
   upsertUser(token: string, profile: UpsertUserPayload) {
     return callEdge<{ id: string; email: string }>("upsert-user", token, profile);
   },
@@ -111,8 +111,8 @@ export const fn = {
   },
 
   /** Records a matchmaker swipe. Returns { matched: boolean }. */
-  recordSwipe(token: string, targetFirebaseUid: string, liked: boolean, score: number) {
-    return callEdge<{ matched: boolean }>("record-swipe", token, { targetFirebaseUid, liked, score });
+  recordSwipe(token: string, targetUserId: string, liked: boolean, score: number) {
+    return callEdge<{ matched: boolean }>("record-swipe", token, { targetUserId, liked, score });
   },
 
   /** Submits in-app feedback. Token is optional (pass "" for anonymous). */
@@ -262,8 +262,8 @@ export const rt = {
 
 // ─── Read helpers (anon key — no auth required) ───────────────
 export const db = {
-  /** Returns the user row by firebase_uid. Used right after Firebase sign-in. */
-  async getUserByFirebaseUid(firebaseUid: string) {
+  /** Returns the user row by their Supabase auth UUID (users.id = auth.users.id). */
+  async getUserByUid(uid: string) {
     const { data, error } = await supabase
       .from("users")
       .select(`
@@ -275,7 +275,7 @@ export const db = {
           user_vibe_pets(pet)
         )
       `)
-      .eq("firebase_uid", firebaseUid)
+      .eq("id", uid)
       .maybeSingle();
     if (error) throw error;
     return data;
@@ -371,10 +371,10 @@ export const db = {
   },
 
   /** Server-computed trust info via Postgres function (avoids N+1 queries). */
-  async getTrustInfo(viewerFirebaseUid: string, targetEmail: string) {
+  async getTrustInfo(viewerUid: string, targetEmail: string) {
     const { data, error } = await supabase.rpc("get_trust_info", {
-      viewer_firebase_uid: viewerFirebaseUid,
-      target_email:        targetEmail,
+      viewer_user_id: viewerUid,
+      target_email:   targetEmail,
     });
     if (error) throw error;
     return data as TrustInfo;
@@ -406,7 +406,7 @@ export const db = {
    * Fetches all active users for the matchmaker, excluding the current user.
    * Ordered by most recently created so newer users surface first.
    */
-  async getMatchUsers(excludeFirebaseUid: string) {
+  async getMatchUsers(excludeUid: string) {
     const { data, error } = await supabase
       .from("users")
       .select(`
@@ -418,7 +418,7 @@ export const db = {
           user_vibe_pets(pet)
         )
       `)
-      .neq("firebase_uid", excludeFirebaseUid)
+      .neq("id", excludeUid)
       .order("created_at", { ascending: false })
       .limit(200);
 

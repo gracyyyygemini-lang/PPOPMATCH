@@ -7,11 +7,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { signOut } from "firebase/auth";
 import { router } from "expo-router";
 import Colors from "@/constants/colors";
 import { useApp } from "@/context/AppContext";
-import { auth } from "@/lib/firebase";
+import { supabase } from "@/lib/supabaseClient";
 import { useResponsive } from "@/hooks/useResponsive";
 import BottomSheetModal from "@/components/BottomSheetModal";
 import CustomAvatar from "@/components/CustomAvatar";
@@ -273,7 +272,7 @@ export default function ProfileScreen() {
   
     try {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      await signOut(auth);
+      await supabase.auth.signOut();
       await AsyncStorage.multiRemove(["@popmatch_user", "@popmatch_onboarded"]);
       await setCurrentUser(null);
       await setIsOnboarded(false);
@@ -297,7 +296,7 @@ export default function ProfileScreen() {
           style: "destructive",
           onPress: async () => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            await signOut(auth);
+            await supabase.auth.signOut();
             await AsyncStorage.multiRemove([
               "@popmatch_user", "@popmatch_onboarded", "@popmatch_matches",
               "@popmatch_liked", "@popmatch_passed", "@popmatch_scam",

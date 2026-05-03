@@ -1,32 +1,39 @@
 import { Redirect } from "expo-router";
 import { useEffect, useState } from "react";
-import { User, onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase";
-import { useApp } from "@/context/AppContext";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function Index() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const { isOnboarded } = useApp();
+  const [status, setStatus] = useState<"loading" | "no-session" | "no-profile" | "ready">("loading");
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
-      setUser(nextUser);
-      setLoading(false);
-    });
+    async function check() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setStatus("no-session"); return; }
 
-    return unsubscribe;
+      // Check if they actually completed onboarding (have a DB profile)
+      const { data } = await supabase
+        .from("users")
+        .select("id")
+        .eq("id", session.user.id)
+        .single();
+
+      setStatus(data ? "ready" : "no-profile");
+    }
+
+    check();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!session) setStatus("no-session");
+        else check();
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  if (loading) return null;
-
-  if (!user) {
-    return <Redirect href="/onboarding" />;
-  }
-
-  if (!isOnboarded) {
-    return <Redirect href="/onboarding" />;
-  }
-
+  if (status === "loading") return null;
+  if (status === "no-session") return <Redirect href="/onboarding" />;
+  if (status === "no-profile") return <Redirect href="/onboarding" />;
   return <Redirect href="/(tabs)" />;
 }

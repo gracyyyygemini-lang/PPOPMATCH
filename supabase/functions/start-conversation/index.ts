@@ -1,9 +1,9 @@
 ﻿// POST /functions/v1/start-conversation
 // Finds an existing conversation or creates a new one.
-// Body: { targetFirebaseUid, listingRef, listingBuilding, listingPrice, listingUnitType?, source? }
-// Requires: Authorization: Bearer <firebase-id-token>
+// Body: { targetSupabaseId, listingRef, listingBuilding, listingPrice, listingUnitType?, source? }
+// Requires: Authorization: Bearer <supabase-session-token>
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { verifyFirebaseToken } from "../_shared/firebase.ts";
+import { verifyToken } from "../_shared/auth.ts";
 import { adminClient } from "../_shared/supabase-admin.ts";
 import { CORS_HEADERS, corsResponse, corsError, msgOf } from "../_shared/cors.ts";
 
@@ -11,7 +11,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
 
   try {
-    const claims = await verifyFirebaseToken(req.headers.get("Authorization"));
+    const claims = await verifyToken(req.headers.get("Authorization"));
 
     const {
       targetSupabaseId, listingRef = "", listingBuilding = "",
@@ -20,23 +20,18 @@ serve(async (req) => {
 
     if (!targetSupabaseId) return corsError("targetSupabaseId is required");
 
-    // Resolve caller from Firebase JWT; target is already a Supabase UUID
-    const [{ data: me }, { data: them }] = await Promise.all([
-      adminClient.from("users").select("id").eq("firebase_uid", claims.uid).single(),
-      adminClient.from("users").select("id").eq("id", targetSupabaseId).single(),
-    ]);
+    if (claims.uid === targetSupabaseId) return corsError("Cannot message yourself");
 
-    if (!me)   return corsError("Your account not found — complete onboarding first", 404);
-    if (!them) return corsError("Target user not found", 404);
-    if (me.id === them.id) return corsError("Cannot message yourself");
+    const myId = claims.uid;
+    const theirId = targetSupabaseId;
 
     // Check if conversation already exists (order-independent participant check)
     const { data: existing } = await adminClient
       .from("conversations")
       .select("id")
       .or(
-        `and(participant1_id.eq.${me.id},participant2_id.eq.${them.id}),` +
-        `and(participant1_id.eq.${them.id},participant2_id.eq.${me.id})`
+        `and(participant1_id.eq.${myId},participant2_id.eq.${theirId}),` +
+        `and(participant1_id.eq.${theirId},participant2_id.eq.${myId})`
       )
       .eq("listing_ref", listingRef)
       .maybeSingle();
@@ -46,8 +41,8 @@ serve(async (req) => {
     const { data: convo, error: convoErr } = await adminClient
       .from("conversations")
       .insert({
-        participant1_id:  me.id,
-        participant2_id:  them.id,
+        participant1_id:  myId,
+        participant2_id:  theirId,
         listing_ref:      listingRef,
         listing_building: listingBuilding,
         listing_price:    listingPrice,

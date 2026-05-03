@@ -1,8 +1,8 @@
 ﻿// POST /functions/v1/post-listing
 // Creates a new listing with amenities, images, landlords, and break types.
-// Requires: Authorization: Bearer <firebase-id-token>
+// Requires: Authorization: Bearer <supabase-session-token>
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { verifyFirebaseToken } from "../_shared/firebase.ts";
+import { verifyToken } from "../_shared/auth.ts";
 import { adminClient } from "../_shared/supabase-admin.ts";
 import { CORS_HEADERS, corsResponse, corsError, msgOf } from "../_shared/cors.ts";
 
@@ -10,17 +10,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
 
   try {
-    const claims = await verifyFirebaseToken(req.headers.get("Authorization"));
+    const claims = await verifyToken(req.headers.get("Authorization"));
 
-    // Resolve the Supabase user id from firebase_uid
-    const { data: userRow, error: userErr } = await adminClient
-      .from("users")
-      .select("id")
-      .eq("firebase_uid", claims.uid)
-      .single();
-
-    if (userErr || !userRow) return corsError("User not found — complete onboarding first", 404);
-    const userId = userRow.id;
+    const userId = claims.uid;
 
     const body = await req.json();
     const {

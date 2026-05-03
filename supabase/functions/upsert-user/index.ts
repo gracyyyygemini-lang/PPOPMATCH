@@ -1,8 +1,8 @@
 ﻿// POST /functions/v1/upsert-user
 // Creates or updates the full user profile (core + organizations + landlord prefs + vibe).
-// Requires: Authorization: Bearer <firebase-id-token>
+// Requires: Authorization: Bearer <supabase-session-token>
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { verifyFirebaseToken } from "../_shared/firebase.ts";
+import { verifyToken } from "../_shared/auth.ts";
 import { adminClient } from "../_shared/supabase-admin.ts";
 import { CORS_HEADERS, corsResponse, corsError, msgOf } from "../_shared/cors.ts";
 
@@ -10,7 +10,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
 
   try {
-    const claims = await verifyFirebaseToken(req.headers.get("Authorization"));
+    const claims = await verifyToken(req.headers.get("Authorization"));
 
     const body = await req.json();
     const {
@@ -25,11 +25,12 @@ serve(async (req) => {
 
     if (!name?.trim()) return corsError("name is required");
 
-    // Upsert core user row
+    // Upsert core user row.
+    // users.id is the Supabase auth UUID (same as claims.uid), so we upsert on "id".
     const { data: user, error: userErr } = await adminClient
       .from("users")
       .upsert({
-        firebase_uid: claims.uid,
+        id: claims.uid,
         email: claims.email,
         name: name.trim(),
         major, bio, budget,
@@ -40,7 +41,7 @@ serve(async (req) => {
         avatar_color: avatarColor,
         profile_image_url: profileImageUrl ?? null,
         college, intent: intent ?? null,
-      }, { onConflict: "firebase_uid" })
+      }, { onConflict: "id" })
       .select("id")
       .single();
 
@@ -99,8 +100,8 @@ serve(async (req) => {
       }
     }
 
-    // Increment total_users stat on first insert (when firebase_uid didn't exist before)
-    // We approximate this: if updated_at == created_at the row was just inserted
+    // Increment total_users stat on first insert.
+    // Approximation: if updated_at == created_at the row was just inserted.
     const { data: freshUser } = await adminClient
       .from("users")
       .select("id, created_at, updated_at")

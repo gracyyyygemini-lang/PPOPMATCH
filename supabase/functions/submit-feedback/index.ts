@@ -2,7 +2,7 @@
 // Submits app feedback. Token is optional — allows anonymous feedback.
 // Body: { rating: "rescue"|"meh"|"love", issueCategory?, issueDetail? }
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { verifyFirebaseToken } from "../_shared/firebase.ts";
+import { verifyToken } from "../_shared/auth.ts";
 import { adminClient } from "../_shared/supabase-admin.ts";
 import { CORS_HEADERS, corsResponse, corsError, msgOf } from "../_shared/cors.ts";
 
@@ -23,14 +23,9 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (authHeader) {
       try {
-        const claims = await verifyFirebaseToken(authHeader);
+        const claims = await verifyToken(authHeader);
         userEmail = claims.email;
-        const { data: me } = await adminClient
-          .from("users")
-          .select("id")
-          .eq("firebase_uid", claims.uid)
-          .single();
-        if (me) userId = me.id;
+        userId = claims.uid;
       } catch {
         // unauthenticated feedback — still accepted
       }

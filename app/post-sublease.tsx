@@ -13,6 +13,7 @@ import {
   useApp, SubleasePost, LeaseType, Landlord, Zone, BreakType,
   KitchenType, BathroomType, CleaningFrequency, ShoePolicy, Amenities, DEFAULT_AMENITIES
 } from "@/context/AppContext";
+import { uploadImageUri, uploadImageUris } from "@/lib/uploadImage";
 
 const LEASE_OPTIONS: { key: LeaseType; label: string; desc: string }[] = [
   { key: "full_year", label: "Full Year", desc: "Aug – Jul (12 months)" },
@@ -117,7 +118,7 @@ function autoCategorize(moveIn: Date, moveOut: Date): LeaseType {
   if (durationDays <= 14) return "fall_sublease";
   const moveInMonth = moveIn.getMonth();
   if (durationDays >= 330) return "full_year";
-  if (moveInMonth >= 4 && moveInMonth <= 6 && durationDays <= 120) return "summer_sublease";
+  if (moveInMonth >= 4 && moveInMonth <= 6 && durationDays <= 140) return "summer_sublease";
   if (moveInMonth >= 0 && moveInMonth <= 1 && durationDays >= 90 && durationDays <= 180) return "spring_sublease";
   if (moveInMonth >= 7 && moveInMonth <= 8 && durationDays >= 90 && durationDays <= 180) return "fall_sublease";
   return "fall_sublease";
@@ -139,6 +140,7 @@ export default function PostSubleaseScreen() {
   const isGateway = params.gateway === "1";
   const isSupplySide = isHostMode || isSublessorMode;
   const [step, setStep] = useState(0);
+  const [uploading, setUploading] = useState(false);
 
   const [buildingName, setBuildingName] = useState("");
   const [address, setAddress] = useState("");
@@ -368,10 +370,13 @@ export default function PostSubleaseScreen() {
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.7,
+      base64: true,
     });
-    if (!result.canceled && result.assets[0]) {
+    if (!result.canceled && result.assets[0]?.base64) {
+      const asset = result.assets[0];
+      const mime = asset.mimeType ?? "image/jpeg";
       const newImages = [...images];
-      newImages[index] = result.assets[0].uri;
+      newImages[index] = `data:${mime};base64,${asset.base64}`;
       setImages(newImages);
     }
   };
@@ -382,9 +387,12 @@ export default function PostSubleaseScreen() {
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.7,
+      base64: true,
     });
-    if (!result.canceled && result.assets[0]) {
-      setFloorPlanImage(result.assets[0].uri);
+    if (!result.canceled && result.assets[0]?.base64) {
+      const asset = result.assets[0];
+      const mime = asset.mimeType ?? "image/jpeg";
+      setFloorPlanImage(`data:${mime};base64,${asset.base64}`);
     }
   };
 
@@ -422,8 +430,28 @@ export default function PostSubleaseScreen() {
   }
 
   const handleSubmit = async () => {
-    if (!canSubmit) return;
+    if (!canSubmit || uploading) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    // Upload images to Storage before building the post
+    let uploadedImages: string[] = [];
+    let uploadedFloorPlan: string | undefined;
+    try {
+      setUploading(true);
+      const localImgs = images.filter(Boolean) as string[];
+      uploadedImages = localImgs.length > 0
+        ? await uploadImageUris(localImgs, "listings")
+        : [];
+      if (floorPlanImage) {
+        uploadedFloorPlan = await uploadImageUri(floorPlanImage, "listings");
+      }
+    } catch (err: any) {
+      setUploading(false);
+      Alert.alert("Upload failed", err?.message ?? "Could not upload photos. Please try again.");
+      return;
+    } finally {
+      setUploading(false);
+    }
 
     const finalCategory = isShortTerm ? "short_term"
       : leaseType === "summer_sublease" ? "summer"
@@ -453,7 +481,7 @@ export default function PostSubleaseScreen() {
       unitType: unitType.trim() || undefined,
       isPrivateBedroom,
       isPrivateBathroom,
-      floorPlanUrl: floorPlanImage || undefined,
+      floorPlanUrl: uploadedFloorPlan,
       roomsAvailable: isHostMode && roomsAvailable ? Number(roomsAvailable) : undefined,
       currentResidentBio: isHostMode && currentResidentBio.trim() ? currentResidentBio.trim() : undefined,
       roommatePreference: roommatePreference || undefined,
@@ -463,7 +491,7 @@ export default function PostSubleaseScreen() {
       amenities,
       cleaningFrequency,
       shoePolicy,
-      images: images.filter(Boolean) as string[],
+      images: uploadedImages,
       eventTag: isShortTerm ? eventTag : undefined,
       subCategory: isSummer ? subCategory : undefined,
       hasParking: isSummer ? hasParking : undefined,
@@ -522,7 +550,11 @@ export default function PostSubleaseScreen() {
       return true;
     }
     if (s === 2) return true;
-    if (s === 3) return moveInDate !== null && moveOutDate !== null;
+    if (s === 3) return (
+      moveInDate !== null && moveOutDate !== null &&
+      (!isShortTerm || !!eventTag) &&
+      (!isSummer || !!subCategory)
+    );
     return true;
   };
 
@@ -934,17 +966,6 @@ export default function PostSubleaseScreen() {
               <Text style={styles.fieldHint}>Date for key handoff</Text>
             </View>
 
-            {moveInDate && moveOutDate && (
-              <View style={[styles.warningBox, { backgroundColor: Colors.ocean + "12", borderLeftColor: Colors.ocean }]}>
-                <Ionicons name="pricetag-outline" size={16} color={Colors.ocean} />
-                <Text style={styles.warningText}>
-                  {getDurationDays(moveInDate, moveOutDate) <= 14
-                    ? `Short-Term (${getDurationDays(moveInDate, moveOutDate)} days) — select an event tag below`
-                    : `Auto-tagged as: ${LEASE_OPTIONS.find(o => o.key === leaseType)?.label || leaseType} (${getDurationDays(moveInDate, moveOutDate)} days)`}
-                </Text>
-              </View>
-            )}
-
             <View style={styles.field}>
               <Text style={styles.label}>Move-Out Date *</Text>
               <TouchableOpacity style={styles.datePickerBtn} onPress={() => { setShowMoveOutPicker(!showMoveOutPicker); setShowMoveInPicker(false); }}>
@@ -960,6 +981,35 @@ export default function PostSubleaseScreen() {
               )}
               <Text style={styles.fieldHint}>Date for key return</Text>
             </View>
+
+            {moveInDate && moveOutDate && (
+              <View style={[styles.warningBox, { backgroundColor: Colors.ocean + "12", borderLeftColor: Colors.ocean }]}>
+                <Ionicons name="pricetag-outline" size={16} color={Colors.ocean} />
+                <Text style={styles.warningText}>
+                  {getDurationDays(moveInDate, moveOutDate) <= 14
+                    ? `Short-Term (${getDurationDays(moveInDate, moveOutDate)} days) — select an event tag below`
+                    : `Auto-tagged as: ${LEASE_OPTIONS.find(o => o.key === leaseType)?.label || leaseType} (${getDurationDays(moveInDate, moveOutDate)} days)`}
+                </Text>
+              </View>
+            )}
+
+            {isSummer && (
+              <View style={styles.field}>
+                <Text style={styles.label}>Summer Timeline <Text style={{ color: "#FF6B4E" }}>*</Text></Text>
+                <Text style={[styles.fieldHint, { marginBottom: 4 }]}>Required for summer listings</Text>
+                {SUMMER_TIMELINE_OPTIONS.map(opt => (
+                  <TouchableOpacity key={opt.key}
+                    style={[styles.optionCard, subCategory === opt.key && styles.optionCardActive]}
+                    onPress={() => { setSubCategory(opt.key); Haptics.selectionAsync(); }}>
+                    <View style={styles.optionLeft}>
+                      <Text style={[styles.optionLabel, subCategory === opt.key && styles.optionLabelActive]}>{opt.label}</Text>
+                      <Text style={styles.optionDesc}>{opt.desc}</Text>
+                    </View>
+                    {subCategory === opt.key && <Ionicons name="checkmark-circle" size={20} color={Colors.ocean} />}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
 
             {moveInDate && moveOutDate && getDurationDays(moveInDate, moveOutDate) > 0 && getDurationDays(moveInDate, moveOutDate) <= 14 && (
               <View style={styles.field}>
@@ -991,12 +1041,14 @@ export default function PostSubleaseScreen() {
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={[styles.submitBtn, canSubmit ? { backgroundColor: Colors.coral } : { backgroundColor: DISABLED_BG, elevation: 0, shadowOpacity: 0 }]}
+            style={[styles.submitBtn, (canSubmit && !uploading) ? { backgroundColor: Colors.coral } : { backgroundColor: DISABLED_BG, elevation: 0, shadowOpacity: 0 }]}
             onPress={handleSubmit}
-            disabled={!canSubmit}
+            disabled={!canSubmit || uploading}
           >
-            <Ionicons name="sparkles" size={20} color={canSubmit ? Colors.white : DISABLED_TEXT} />
-            <Text style={[styles.submitBtnText, !canSubmit && { color: DISABLED_TEXT }]}>Publish Listing ✨</Text>
+            <Ionicons name="sparkles" size={20} color={(canSubmit && !uploading) ? Colors.white : DISABLED_TEXT} />
+            <Text style={[styles.submitBtnText, (!canSubmit || uploading) && { color: DISABLED_TEXT }]}>
+              {uploading ? "Uploading photos…" : "Publish Listing ✨"}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
