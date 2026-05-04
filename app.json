@@ -16,7 +16,10 @@
     "ios": {
       "bundleIdentifier": "app.popmatch",
       "buildNumber": "1",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.popmatch",

@@ -22,7 +22,8 @@ export async function verifyToken(
   if (error || !user?.email) {
     throw new Error("Invalid or expired session — please sign in again");
   }
-  if (!user.email.endsWith(".edu")) {
+  const APPLE_REVIEW_EMAIL = "popmatch.testuser@gmail.com";
+  if (!user.email.endsWith(".edu") && user.email !== APPLE_REVIEW_EMAIL) {
     throw new Error("Only .edu email addresses are allowed");
   }
 

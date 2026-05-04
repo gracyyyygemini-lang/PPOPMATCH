@@ -308,7 +308,8 @@ export default function OnboardingScreen() {
   // ── Supabase email OTP ────────────────────────────────────
   async function handleSendOtp() {
     const emailTrimmed = otpEmail.trim().toLowerCase();
-    if (!emailTrimmed.endsWith("@illinois.edu")) {
+    const APPLE_REVIEW_EMAIL = "popmatch.testuser@gmail.com";
+    if (!emailTrimmed.endsWith("@illinois.edu") && emailTrimmed !== APPLE_REVIEW_EMAIL) {
       setOtpError("Only @illinois.edu addresses are allowed.");
       return;
     }
